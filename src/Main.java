@@ -1,6 +1,7 @@
 import com.oanda.v20.ExecuteException;
 import com.oanda.v20.RequestException;
 import com.oanda.v20.primitives.InstrumentName;
+import com.oanda.v20.transaction.OpenTradeFinancing;
 import com.oanda.v20.transaction.TransactionID;
 import org.ta4j.core.*;
 import org.ta4j.core.indicators.averages.EMAIndicator;
@@ -12,6 +13,9 @@ import org.ta4j.core.rules.CrossedUpIndicatorRule;
 import org.ta4j.core.rules.StopGainRule;
 import org.ta4j.core.rules.TrailingStopLossRule;
 
+import java.time.*;
+import java.time.temporal.TemporalAmount;
+import java.util.Calendar;
 import java.util.HashMap;
 import java.util.Set;
 
@@ -61,6 +65,53 @@ public class Main {
         return strategiesByInstrumentName;
     }
 
+    private static long getSleepTime() {
+        // Get the current time
+        Instant currentTime = Instant.now();
+        LocalDateTime currentDateTime = LocalDateTime.now(ZoneId.of("America/Chicago"));
+        LocalDateTime targetDateTime = null;
+
+        int daysToAdd = getDaysToAdd(currentDateTime);
+
+        targetDateTime = LocalDateTime.of(
+                currentDateTime.getYear(),
+                currentDateTime.getMonthValue(),
+                currentDateTime.getDayOfMonth(),
+                16,
+                1,
+                0
+        ).plusDays(daysToAdd);
+        // Convert the target to an Instant, considering the system's default time zone
+        Instant targetInstant = targetDateTime.atZone(ZoneId.of("America/Chicago")).toInstant();
+
+        // Calculate the duration between the two instants
+        Duration duration = Duration.between(currentTime, targetInstant);
+        System.out.println("Sleeping until: " + targetInstant.atZone(ZoneId.of("America/Chicago")).toString());
+
+        // Return the difference in milliseconds
+        return duration.toMillis();
+    }
+
+    private static int getDaysToAdd(LocalDateTime currentDateTime) {
+        int daysToAdd;
+
+        // Same day and not friday/saturday, sleep until afternoon
+        // Thursday, sleep 3 days
+        // Friday, sleep 2 days
+        // Otherwise sleep 1 day
+
+        if (currentDateTime.getHour() < 16 && currentDateTime.getDayOfWeek() != DayOfWeek.FRIDAY && currentDateTime.getDayOfWeek() != DayOfWeek.SATURDAY ) {
+            daysToAdd = 0;
+        } else if (currentDateTime.getDayOfWeek() == DayOfWeek.THURSDAY) {
+            daysToAdd = 3;
+        } else if (currentDateTime.getDayOfWeek() == DayOfWeek.FRIDAY) {
+            daysToAdd = 2;
+        } else {
+            daysToAdd = 1;
+        }
+        return daysToAdd;
+    }
+
 
     public static void main(String[] args) throws ExecuteException, RequestException, InterruptedException {
 
@@ -69,7 +120,7 @@ public class Main {
         // remove the Id from the map. Only close a position if there is trade id is blank for an instrument. Only open a position if trade id is not blank
         // for an instrument
         HashMap<InstrumentName, TransactionID> transactionIdsByInstrument = Config.getTransactionIdsByInstrumentName();
-        
+
         // Get inital Bar Series
         // Neet to create a map of Bar Series by Instrument
         HashMap<InstrumentName, BarSeries> barSeriesByInstrumentName = initAllMovingBarSeries(300, transactionIdsByInstrument.keySet());
@@ -86,7 +137,7 @@ public class Main {
 
         // Run the strategy for the next 50 bars
         for (int i = 0; i < 1; i++) {
-
+            Thread.sleep(getSleepTime());
             // Loop over each instrument
             for (InstrumentName instrumentName : transactionIdsByInstrument.keySet()) {
                 BarSeries series = barSeriesByInstrumentName.get(instrumentName);
@@ -110,7 +161,6 @@ public class Main {
                     // Place market order with Oanda
                     TransactionID tradeId = oanda.placeMarketOrder(instrumentName);
                     transactionIdsByInstrument.put(instrumentName, tradeId);
-
 
                     // Only enter if market order is successful
                     boolean entered = tradingRecord.enter(endIndex, newBar.getClosePrice(), DecimalNum.valueOf(10));
@@ -137,12 +187,6 @@ public class Main {
 
                 }
             }
-
-
-
-            Thread.sleep(100); // Probably should dynamically calculate this to the specific time we want to check again
         }
     }
-
-
 }
