@@ -141,7 +141,7 @@ public class OandaInterface {
 
             MarketOrderRequest marketOrderRequest = new MarketOrderRequest();
             marketOrderRequest.setInstrument(instrument);
-            marketOrderRequest.setUnits(10);                                      // Determine this using average true range
+            marketOrderRequest.setUnits(100);                                      // Determine this using average true range
             request.setOrder(marketOrderRequest);
 
             OrderCreateResponse response = ctx.order.create(request);

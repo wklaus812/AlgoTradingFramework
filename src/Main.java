@@ -12,10 +12,9 @@ import org.ta4j.core.rules.CrossedDownIndicatorRule;
 import org.ta4j.core.rules.CrossedUpIndicatorRule;
 import org.ta4j.core.rules.StopGainRule;
 import org.ta4j.core.rules.TrailingStopLossRule;
+import org.ta4j.core.utils.BarSeriesUtils;
 
 import java.time.*;
-import java.time.temporal.TemporalAmount;
-import java.util.Calendar;
 import java.util.HashMap;
 import java.util.Set;
 
@@ -35,7 +34,7 @@ public class Main {
             Num lastBarClosePrice = series.getLastBar().getClosePrice();
             System.out.println(" (limited to " + maxBarCount + "), close price = " + lastBarClosePrice);
             barSeriesByInstrumentName.put(instrument, series);
-            Thread.sleep(100);
+            //Thread.sleep(10);
         }
 
 
@@ -50,7 +49,7 @@ public class Main {
             BarSeries series = barSeriesByInstrumentName.get(instrument);
 
             ClosePriceIndicator closePrice = new ClosePriceIndicator(series);
-            EMAIndicator ema = new EMAIndicator(closePrice, 200);
+            EMAIndicator ema = new EMAIndicator(closePrice, 25);
             Rule buyingRule = new CrossedUpIndicatorRule(ema, closePrice);
             Rule sellingRule = new CrossedDownIndicatorRule(ema, closePrice)
                     .or(new TrailingStopLossRule(closePrice, series.numFactory().numOf(4)))     // Determine using average true range
@@ -77,8 +76,8 @@ public class Main {
                 currentDateTime.getYear(),
                 currentDateTime.getMonthValue(),
                 currentDateTime.getDayOfMonth(),
-                16,
-                1,
+                15,
+                45,
                 0
         ).plusDays(daysToAdd);
         // Convert the target to an Instant, considering the system's default time zone
@@ -95,16 +94,16 @@ public class Main {
     private static int getDaysToAdd(LocalDateTime currentDateTime) {
         int daysToAdd;
 
-        // Same day and not friday/saturday, sleep until afternoon
-        // Thursday, sleep 3 days
-        // Friday, sleep 2 days
+        // Same day and not Saturday/Sunday, sleep until afternoon
+        // Friday, sleep 3 days
+        // Saturday, sleep 2 days
         // Otherwise sleep 1 day
 
-        if (currentDateTime.getHour() < 16 && currentDateTime.getDayOfWeek() != DayOfWeek.FRIDAY && currentDateTime.getDayOfWeek() != DayOfWeek.SATURDAY ) {
+        if (currentDateTime.getHour() < 15 && currentDateTime.getMinute() < 45 && currentDateTime.getDayOfWeek() != DayOfWeek.SATURDAY && currentDateTime.getDayOfWeek() != DayOfWeek.SUNDAY ) {
             daysToAdd = 0;
-        } else if (currentDateTime.getDayOfWeek() == DayOfWeek.THURSDAY) {
-            daysToAdd = 3;
         } else if (currentDateTime.getDayOfWeek() == DayOfWeek.FRIDAY) {
+            daysToAdd = 3;
+        } else if (currentDateTime.getDayOfWeek() == DayOfWeek.SATURDAY) {
             daysToAdd = 2;
         } else {
             daysToAdd = 1;
@@ -136,22 +135,24 @@ public class Main {
         OandaInterface oanda = new OandaInterface();
 
         // Run the strategy for the next 50 bars
-        for (int i = 0; i < 1; i++) {
+        for (int i = 0; i < 10; i++) {
             Thread.sleep(getSleepTime());
             // Loop over each instrument
             for (InstrumentName instrumentName : transactionIdsByInstrument.keySet()) {
                 BarSeries series = barSeriesByInstrumentName.get(instrumentName);
                 BaseStrategy strategy = strategiesByInstrumentName.get(instrumentName);
 
-                // Get new bar and add to series
+                // Get new bar and add to series or update if a bar already exists for time frame
                 Bar newBar = oanda.getLatestBar(instrumentName);
-                if (series.getLastBar().equals(newBar)) {
-                    System.out.println("EQUAL, DO NOTHING: " + instrumentName.toString());
-                    continue;
+                if (!series.getLastBar().getEndTime().equals(newBar.getEndTime())) {
+                    System.out.println("------------------------------------------------------\n" + "Bar "
+                            + " added to " + instrumentName.toString() + ", close price = " + newBar.getClosePrice().doubleValue());
+                    series.addBar(newBar);
+                } else {
+                    BarSeriesUtils.replaceBarIfChanged(series, newBar);
+                    System.out.println("------------------------------------------------------\n" + "Last bar "
+                            + " replaced for " + instrumentName.toString() + ", close price = " + newBar.getClosePrice().doubleValue());
                 }
-                System.out.println("------------------------------------------------------\n" + "Bar " + i
-                        + " added for " + instrumentName.toString() + ", close price = " + newBar.getClosePrice().doubleValue());
-                series.addBar(newBar);
 
                 // Check entry and exit conditions
                 int endIndex = series.getEndIndex();
@@ -182,11 +183,12 @@ public class Main {
                         System.out.println("Exited on " + exit.getIndex() + " (price=" + exit.getNetPrice().doubleValue()
                                 + ", amount=" + exit.getAmount().doubleValue() + ")");
                     }
-
                     transactionIdsByInstrument.put(instrumentName, null);
-
+                } else {
+                    System.out.println("No trade: " + instrumentName.toString());
                 }
             }
+            System.out.println("************************************************************");
         }
     }
 }
