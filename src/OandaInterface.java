@@ -10,6 +10,8 @@ import com.oanda.v20.instrument.InstrumentCandlesResponse;
 import com.oanda.v20.order.MarketOrderRequest;
 import com.oanda.v20.order.OrderCreateRequest;
 import com.oanda.v20.order.OrderCreateResponse;
+import com.oanda.v20.pricing.HomeConversions;
+import com.oanda.v20.primitives.Currency;
 import com.oanda.v20.primitives.InstrumentName;
 import com.oanda.v20.trade.TradeCloseRequest;
 import com.oanda.v20.trade.TradeCloseResponse;
@@ -141,7 +143,7 @@ public class OandaInterface {
 
             MarketOrderRequest marketOrderRequest = new MarketOrderRequest();
             marketOrderRequest.setInstrument(instrument);
-            marketOrderRequest.setUnits(100);                                      // Determine this using average true range
+            marketOrderRequest.setUnits(1000);
             request.setOrder(marketOrderRequest);
 
             OrderCreateResponse response = ctx.order.create(request);

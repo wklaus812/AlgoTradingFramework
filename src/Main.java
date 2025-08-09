@@ -1,9 +1,10 @@
 import com.oanda.v20.ExecuteException;
 import com.oanda.v20.RequestException;
+import com.oanda.v20.pricing.HomeConversions;
 import com.oanda.v20.primitives.InstrumentName;
-import com.oanda.v20.transaction.OpenTradeFinancing;
 import com.oanda.v20.transaction.TransactionID;
 import org.ta4j.core.*;
+import org.ta4j.core.indicators.ATRIndicator;
 import org.ta4j.core.indicators.averages.EMAIndicator;
 import org.ta4j.core.indicators.helpers.ClosePriceIndicator;
 import org.ta4j.core.num.DecimalNum;
@@ -34,13 +35,18 @@ public class Main {
             Num lastBarClosePrice = series.getLastBar().getClosePrice();
             System.out.println(" (limited to " + maxBarCount + "), close price = " + lastBarClosePrice);
             barSeriesByInstrumentName.put(instrument, series);
+
+            ATRIndicator atr = new ATRIndicator(series, 14);
+            System.out.println(atr.getValue(series.getEndIndex()));
+            HomeConversions hc = new HomeConversions();
+            hc.setCurrency(instrument.toString());
+            hc.setPositionValue(series.getLastBar().getClosePrice().doubleValue()*2);
+            System.out.println(hc);
             //Thread.sleep(10);
         }
 
-
         return barSeriesByInstrumentName;
     }
-
 
     private static HashMap<InstrumentName, BaseStrategy> buildStrategyMap(HashMap<InstrumentName, BarSeries> barSeriesByInstrumentName) {
         HashMap<InstrumentName, BaseStrategy> strategiesByInstrumentName = new HashMap<>();
@@ -111,7 +117,6 @@ public class Main {
         return daysToAdd;
     }
 
-
     public static void main(String[] args) throws ExecuteException, RequestException, InterruptedException {
 
         System.out.println("********************** Initialization **********************");
@@ -137,10 +142,29 @@ public class Main {
         // Run the strategy for the next 50 bars
         for (int i = 0; i < 10; i++) {
             Thread.sleep(getSleepTime());
+            // Update all series with latest bars
+            for (InstrumentName instrumentName : transactionIdsByInstrument.keySet()) {
+                BarSeries series = barSeriesByInstrumentName.get(instrumentName);
+
+                // Get new bar and add to series or update if a bar already exists for time frame
+                Bar newBar = oanda.getLatestBar(instrumentName);
+                if (!series.getLastBar().getEndTime().equals(newBar.getEndTime())) {
+                    System.out.println("------------------------------------------------------\n" + "Bar "
+                            + " added to " + instrumentName.toString() + ", close price = " + newBar.getClosePrice().doubleValue());
+                    series.addBar(newBar);
+                } else {
+                    BarSeriesUtils.replaceBarIfChanged(series, newBar);
+                    System.out.println("------------------------------------------------------\n" + "Last bar "
+                            + " replaced for " + instrumentName.toString() + ", close price = " + newBar.getClosePrice().doubleValue());
+                }
+            }
+
+
             // Loop over each instrument
             for (InstrumentName instrumentName : transactionIdsByInstrument.keySet()) {
                 BarSeries series = barSeriesByInstrumentName.get(instrumentName);
                 BaseStrategy strategy = strategiesByInstrumentName.get(instrumentName);
+
 
                 // Get new bar and add to series or update if a bar already exists for time frame
                 Bar newBar = oanda.getLatestBar(instrumentName);
@@ -164,7 +188,7 @@ public class Main {
                     transactionIdsByInstrument.put(instrumentName, tradeId);
 
                     // Only enter if market order is successful
-                    boolean entered = tradingRecord.enter(endIndex, newBar.getClosePrice(), DecimalNum.valueOf(10));
+                    boolean entered = tradingRecord.enter(endIndex, newBar.getClosePrice(), DecimalNum.valueOf(100));
                     if (entered) {
                         Trade entry = tradingRecord.getLastEntry();
                         System.out.println("Entered on " + entry.getIndex() + " (price=" + entry.getNetPrice().doubleValue()
