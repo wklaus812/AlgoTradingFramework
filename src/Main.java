@@ -1,7 +1,22 @@
+import com.oanda.v20.Context;
+import com.oanda.v20.ContextBuilder;
 import com.oanda.v20.ExecuteException;
 import com.oanda.v20.RequestException;
+import com.oanda.v20.account.Account;
+import com.oanda.v20.account.AccountGetResponse;
+import com.oanda.v20.account.AccountID;
+import com.oanda.v20.account.AccountSummary;
+import com.oanda.v20.position.Position;
+import com.oanda.v20.pricing.ClientPrice;
 import com.oanda.v20.pricing.HomeConversions;
+import com.oanda.v20.pricing.PricingContext;
+import com.oanda.v20.pricing.QuoteHomeConversionFactors;
+import com.oanda.v20.pricing_common.Price;
+import com.oanda.v20.pricing_common.PriceValue;
 import com.oanda.v20.primitives.InstrumentName;
+import com.oanda.v20.transaction.StopLossDetails;
+import com.oanda.v20.transaction.TakeProfitDetails;
+import com.oanda.v20.transaction.TrailingStopLossDetails;
 import com.oanda.v20.transaction.TransactionID;
 import org.ta4j.core.*;
 import org.ta4j.core.indicators.ATRIndicator;
@@ -15,9 +30,10 @@ import org.ta4j.core.rules.StopGainRule;
 import org.ta4j.core.rules.TrailingStopLossRule;
 import org.ta4j.core.utils.BarSeriesUtils;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.*;
-import java.util.HashMap;
-import java.util.Set;
+import java.util.*;
 
 //TIP To <b>Run</b> code, press <shortcut actionId="Run"/> or
 // click the <icon src="AllIcons.Actions.Execute"/> icon in the gutter.
@@ -35,13 +51,6 @@ public class Main {
             Num lastBarClosePrice = series.getLastBar().getClosePrice();
             System.out.println(" (limited to " + maxBarCount + "), close price = " + lastBarClosePrice);
             barSeriesByInstrumentName.put(instrument, series);
-
-            ATRIndicator atr = new ATRIndicator(series, 14);
-            System.out.println(atr.getValue(series.getEndIndex()));
-            HomeConversions hc = new HomeConversions();
-            hc.setCurrency(instrument.toString());
-            hc.setPositionValue(series.getLastBar().getClosePrice().doubleValue()*2);
-            System.out.println(hc);
             //Thread.sleep(10);
         }
 
@@ -117,8 +126,20 @@ public class Main {
         return daysToAdd;
     }
 
-    public static void main(String[] args) throws ExecuteException, RequestException, InterruptedException {
+    // Gets a rounded value based on the instrument
+    private static BigDecimal getRoundedValue(InstrumentName instrument, BigDecimal value) {
+        BigDecimal roundedValue;
 
+        if (instrument.toString().contains("JPY")) {
+            roundedValue = value.setScale(3, RoundingMode.HALF_UP);
+        } else {
+            roundedValue = value.setScale(5, RoundingMode.HALF_UP);
+        }
+
+        return roundedValue;
+    }
+
+    public static void main(String[] args) throws Exception {
         System.out.println("********************** Initialization **********************");
         // Need to build a map of TradeIds by instrument. If a position is opened, store the id in the map, if a position is closed
         // remove the Id from the map. Only close a position if there is trade id is blank for an instrument. Only open a position if trade id is not blank
@@ -140,8 +161,8 @@ public class Main {
         OandaInterface oanda = new OandaInterface();
 
         // Run the strategy for the next 50 bars
-        for (int i = 0; i < 10; i++) {
-            Thread.sleep(getSleepTime());
+        for (int i = 0; i < 50; i++) {
+            //Thread.sleep(getSleepTime());
             // Update all series with latest bars
             for (InstrumentName instrumentName : transactionIdsByInstrument.keySet()) {
                 BarSeries series = barSeriesByInstrumentName.get(instrumentName);
@@ -149,54 +170,79 @@ public class Main {
                 // Get new bar and add to series or update if a bar already exists for time frame
                 Bar newBar = oanda.getLatestBar(instrumentName);
                 if (!series.getLastBar().getEndTime().equals(newBar.getEndTime())) {
-                    System.out.println("------------------------------------------------------\n" + "Bar "
-                            + " added to " + instrumentName.toString() + ", close price = " + newBar.getClosePrice().doubleValue());
+                    System.out.println("Bar added to " + instrumentName.toString() + ", close price = " + newBar.getClosePrice().doubleValue());
                     series.addBar(newBar);
                 } else {
                     BarSeriesUtils.replaceBarIfChanged(series, newBar);
-                    System.out.println("------------------------------------------------------\n" + "Last bar "
-                            + " replaced for " + instrumentName.toString() + ", close price = " + newBar.getClosePrice().doubleValue());
+                    System.out.println("Last bar replaced for " + instrumentName.toString() + ", close price = " + newBar.getClosePrice().doubleValue());
                 }
             }
+            System.out.println("************************************************************");
 
+            // Get map containing close price in USD for all instruments
+            HashMap<InstrumentName, Double> closePriceInUsdByInstrumentName = CurrencyConverter.getClosePriceInUsdByInstrumentName(barSeriesByInstrumentName);
+            // Get account information (balance, trade information, etc.)
+            BigDecimal accountBalance = OandaInterface.getAccountBalance();
 
             // Loop over each instrument
             for (InstrumentName instrumentName : transactionIdsByInstrument.keySet()) {
                 BarSeries series = barSeriesByInstrumentName.get(instrumentName);
                 BaseStrategy strategy = strategiesByInstrumentName.get(instrumentName);
 
-
-                // Get new bar and add to series or update if a bar already exists for time frame
-                Bar newBar = oanda.getLatestBar(instrumentName);
-                if (!series.getLastBar().getEndTime().equals(newBar.getEndTime())) {
-                    System.out.println("------------------------------------------------------\n" + "Bar "
-                            + " added to " + instrumentName.toString() + ", close price = " + newBar.getClosePrice().doubleValue());
-                    series.addBar(newBar);
-                } else {
-                    BarSeriesUtils.replaceBarIfChanged(series, newBar);
-                    System.out.println("------------------------------------------------------\n" + "Last bar "
-                            + " replaced for " + instrumentName.toString() + ", close price = " + newBar.getClosePrice().doubleValue());
-                }
+                Bar newBar = series.getLastBar();
 
                 // Check entry and exit conditions
                 int endIndex = series.getEndIndex();
                 if (strategy.shouldEnter(endIndex) && transactionIdsByInstrument.get(instrumentName) == null) {
-                    System.out.println("Strategy should ENTER on " + endIndex);
+                    //System.out.println("Strategy should ENTER on " + endIndex);
 
                     // Place market order with Oanda
-                    TransactionID tradeId = oanda.placeMarketOrder(instrumentName);
+                    // Position size = (Account size * risk %) / (stop distance in pips * pipValue per unit)
+                    Double closePriceInUsd = closePriceInUsdByInstrumentName.get(instrumentName);
+                    long tradeSize = PositionSizer.calculateUnits(
+                            accountBalance,
+                            new BigDecimal("0.01"),
+                            series,
+                            14,
+                            new BigDecimal("1.5"),
+                            instrumentName.toString(),
+                            "USD",
+                            new BigDecimal(closePriceInUsd)
+                    );
+
+                    // Determine ATR, stop loss, and take profit
+                    ATRIndicator atr = new ATRIndicator(series, 14);
+                    double atrValue= atr.getValue(series.getEndIndex()).doubleValue();
+                    double stopLoss = atrValue * 1.5;
+                    double takeProfit = atrValue * 3 + series.getLastBar().getClosePrice().doubleValue();
+
+                    // Stop Loss and Take Profit details
+                    TrailingStopLossDetails stopLossDetails = new TrailingStopLossDetails();
+                    stopLossDetails.setDistance(getRoundedValue(instrumentName, new BigDecimal(stopLoss)));
+                    TakeProfitDetails takeProfitDetails = new TakeProfitDetails();
+                    takeProfitDetails.setPrice(getRoundedValue(instrumentName, new BigDecimal(takeProfit)));
+
+                    TransactionID tradeId = oanda.placeMarketOrder(instrumentName, Math.round(tradeSize), stopLossDetails, takeProfitDetails);
                     transactionIdsByInstrument.put(instrumentName, tradeId);
 
                     // Only enter if market order is successful
                     boolean entered = tradingRecord.enter(endIndex, newBar.getClosePrice(), DecimalNum.valueOf(100));
                     if (entered) {
                         Trade entry = tradingRecord.getLastEntry();
-                        System.out.println("Entered on " + entry.getIndex() + " (price=" + entry.getNetPrice().doubleValue()
-                                + ", amount=" + entry.getAmount().doubleValue() + ")");
-                    }
+//                        System.out.println("Entered on " + entry.getIndex() + " (price=" + entry.getNetPrice().doubleValue()
+//                                + ", amount=" + entry.getAmount().doubleValue() + ")");
 
+                        // Print Trade Details
+                        System.out.println("======= Trade Details =======");
+                        System.out.println("    Instrument: " + instrumentName);
+                        System.out.println("    Price: " + entry.getAmount().doubleValue());
+                        System.out.println("    Trade size: " + tradeSize);
+                        System.out.println("    Stop Loss: " + stopLossDetails.getDistance());
+                        System.out.println("    Take Profit: " + takeProfitDetails.getPrice());
+                        System.out.println("=============================");
+                    }
                 } else if (strategy.shouldExit(endIndex) && transactionIdsByInstrument.get(instrumentName) != null) {
-                    System.out.println("Strategy should EXIT on " + endIndex);
+                    System.out.println("Strategy should EXIT: " + instrumentName);
 
                     // Close order with Oanda
                     oanda.closePosition(instrumentName, transactionIdsByInstrument.get(instrumentName));
@@ -209,10 +255,11 @@ public class Main {
                     }
                     transactionIdsByInstrument.put(instrumentName, null);
                 } else {
-                    System.out.println("No trade: " + instrumentName.toString());
+                    System.out.println("No trade: " + instrumentName);
                 }
             }
             System.out.println("************************************************************");
+            Thread.sleep(getSleepTime());
         }
     }
 }

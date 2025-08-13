@@ -7,22 +7,22 @@ import com.oanda.v20.instrument.Candlestick;
 import com.oanda.v20.instrument.CandlestickGranularity;
 import com.oanda.v20.instrument.InstrumentCandlesRequest;
 import com.oanda.v20.instrument.InstrumentCandlesResponse;
-import com.oanda.v20.order.MarketOrderRequest;
-import com.oanda.v20.order.OrderCreateRequest;
-import com.oanda.v20.order.OrderCreateResponse;
+import com.oanda.v20.order.*;
 import com.oanda.v20.pricing.HomeConversions;
 import com.oanda.v20.primitives.Currency;
 import com.oanda.v20.primitives.InstrumentName;
 import com.oanda.v20.trade.TradeCloseRequest;
 import com.oanda.v20.trade.TradeCloseResponse;
+import com.oanda.v20.trade.TradeID;
 import com.oanda.v20.trade.TradeSpecifier;
-import com.oanda.v20.transaction.OrderFillTransaction;
-import com.oanda.v20.transaction.TransactionID;
+import com.oanda.v20.transaction.*;
 import org.ta4j.core.BarSeries;
 import org.ta4j.core.BaseBar;
 import org.ta4j.core.BaseBarSeriesBuilder;
+import org.ta4j.core.indicators.ATRIndicator;
 import org.ta4j.core.num.DecimalNum;
 
+import java.math.BigDecimal;
 import java.time.*;
 import java.util.List;
 
@@ -127,7 +127,7 @@ public class OandaInterface {
                 offsetDateTime.getSecond(), offsetDateTime.getNano(), ZoneId.of("America/Chicago"));
     }
 
-    public TransactionID placeMarketOrder(InstrumentName instrument) {
+    public TransactionID placeMarketOrder(InstrumentName instrument, int tradeSize, TrailingStopLossDetails stopLossDetails, TakeProfitDetails takeProfitDetails) {
         Context ctx = new ContextBuilder(Config.URL)
                 .setToken(Config.TOKEN)
                 .setApplication("PlaceMarketOrder")
@@ -137,20 +137,22 @@ public class OandaInterface {
         validateAccount(ctx, accountId);
 
         // Place market order
-        TransactionID tradeId;
+        TransactionID txnId;
         try {
             OrderCreateRequest request = new OrderCreateRequest(accountId);
 
             MarketOrderRequest marketOrderRequest = new MarketOrderRequest();
             marketOrderRequest.setInstrument(instrument);
-            marketOrderRequest.setUnits(1000);
+            marketOrderRequest.setUnits(tradeSize);
+            marketOrderRequest.setTrailingStopLossOnFill(stopLossDetails);
+            marketOrderRequest.setTakeProfitOnFill(takeProfitDetails);
             request.setOrder(marketOrderRequest);
 
             OrderCreateResponse response = ctx.order.create(request);
             OrderFillTransaction transaction = response.getOrderFillTransaction();
 
-            tradeId = transaction.getId();
-            return tradeId;
+            txnId = transaction.getId();
+            return txnId;
 
         } catch (Exception e) {
             throw new RuntimeException(e);
@@ -208,5 +210,19 @@ public class OandaInterface {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
+    }
+
+    public static BigDecimal getAccountBalance() {
+        // Gets the current balance of the account
+        Context ctx = new ContextBuilder(Config.URL).setToken(Config.TOKEN).setApplication("GetAccountDetails").build();
+        BigDecimal accountBalance = new BigDecimal("0.0");
+
+        try {
+            AccountGetResponse acc = ctx.account.get(Config.ACCOUNTID);
+            accountBalance = acc.getAccount().getBalance().bigDecimalValue();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return accountBalance;
     }
 }
