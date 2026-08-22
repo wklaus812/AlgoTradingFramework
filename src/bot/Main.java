@@ -1,22 +1,14 @@
-import com.oanda.v20.Context;
-import com.oanda.v20.ContextBuilder;
+package bot;
+
+import bot.broker.OandaBroker;
+import bot.data.CurrencyConverter;
+import bot.config.Config;
+import bot.engine.OrderDetails;
+import bot.risk.PositionSizer;
+
 import com.oanda.v20.ExecuteException;
 import com.oanda.v20.RequestException;
-import com.oanda.v20.account.Account;
-import com.oanda.v20.account.AccountGetResponse;
-import com.oanda.v20.account.AccountID;
-import com.oanda.v20.account.AccountSummary;
-import com.oanda.v20.position.Position;
-import com.oanda.v20.pricing.ClientPrice;
-import com.oanda.v20.pricing.HomeConversions;
-import com.oanda.v20.pricing.PricingContext;
-import com.oanda.v20.pricing.QuoteHomeConversionFactors;
-import com.oanda.v20.pricing_common.Price;
-import com.oanda.v20.pricing_common.PriceValue;
 import com.oanda.v20.primitives.InstrumentName;
-import com.oanda.v20.transaction.StopLossDetails;
-import com.oanda.v20.transaction.TakeProfitDetails;
-import com.oanda.v20.transaction.TrailingStopLossDetails;
 import com.oanda.v20.transaction.TransactionID;
 import org.ta4j.core.*;
 import org.ta4j.core.indicators.ATRIndicator;
@@ -41,10 +33,10 @@ public class Main {
 
     private static HashMap<InstrumentName, BarSeries> initAllMovingBarSeries(int maxBarCount, Set<InstrumentName> instruments) throws ExecuteException, RequestException, InterruptedException {
         HashMap<InstrumentName, BarSeries> barSeriesByInstrumentName = new HashMap<InstrumentName, BarSeries>();
-        OandaInterface oanda = new OandaInterface();
+        OandaBroker oanda = new OandaBroker();
 
         for (InstrumentName instrument : instruments) {
-            BarSeries series = oanda.getBarSeriesFromOanda(instrument);
+            BarSeries series = oanda.getHistoricalBarSeries(instrument);
             System.out.print("Initial bar count (" + instrument.toString() +"): " + series.getBarCount());
 
             series.setMaximumBarCount(maxBarCount);
@@ -158,7 +150,7 @@ public class Main {
         TradingRecord tradingRecord = new BaseTradingRecord();
         System.out.println("************************************************************");
 
-        OandaInterface oanda = new OandaInterface();
+        OandaBroker oanda = new OandaBroker();
 
         // Run the strategy for the next 50 bars
         for (int i = 0; i < 50; i++) {
@@ -182,7 +174,7 @@ public class Main {
             // Get map containing close price in USD for all instruments
             HashMap<InstrumentName, Double> closePriceInUsdByInstrumentName = CurrencyConverter.getClosePriceInUsdByInstrumentName(barSeriesByInstrumentName);
             // Get account information (balance, trade information, etc.)
-            BigDecimal accountBalance = OandaInterface.getAccountBalance();
+            BigDecimal accountBalance = OandaBroker.getAccountBalance();
 
             // Loop over each instrument
             for (InstrumentName instrumentName : transactionIdsByInstrument.keySet()) {
@@ -217,12 +209,11 @@ public class Main {
                     double takeProfit = atrValue * 3 + series.getLastBar().getClosePrice().doubleValue();
 
                     // Stop Loss and Take Profit details
-                    TrailingStopLossDetails stopLossDetails = new TrailingStopLossDetails();
-                    stopLossDetails.setDistance(getRoundedValue(instrumentName, new BigDecimal(stopLoss)));
-                    TakeProfitDetails takeProfitDetails = new TakeProfitDetails();
-                    takeProfitDetails.setPrice(getRoundedValue(instrumentName, new BigDecimal(takeProfit)));
+                    OrderDetails orderDetails = new OrderDetails();
+                    orderDetails.setStopLoss(new BigDecimal(stopLoss), true);
+                    orderDetails.setTakeProfitPrice(new BigDecimal(takeProfit));
 
-                    TransactionID tradeId = oanda.placeMarketOrder(instrumentName, Math.round(tradeSize), stopLossDetails, takeProfitDetails);
+                    TransactionID tradeId = oanda.placeMarketOrder(instrumentName, Math.round(tradeSize), orderDetails);
                     transactionIdsByInstrument.put(instrumentName, tradeId);
 
                     // Only enter if market order is successful
@@ -237,8 +228,8 @@ public class Main {
                         System.out.println("    Instrument: " + instrumentName);
                         System.out.println("    Price: " + entry.getAmount().doubleValue());
                         System.out.println("    Trade size: " + tradeSize);
-                        System.out.println("    Stop Loss: " + stopLossDetails.getDistance());
-                        System.out.println("    Take Profit: " + takeProfitDetails.getPrice());
+                        System.out.println("    Stop Loss: " + orderDetails.getStopLossDistance());
+                        System.out.println("    Take Profit: " + orderDetails.getTakeProfitPrice());
                         System.out.println("=============================");
                     }
                 } else if (strategy.shouldExit(endIndex) && transactionIdsByInstrument.get(instrumentName) != null) {

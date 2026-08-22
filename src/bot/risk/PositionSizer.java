@@ -1,4 +1,5 @@
-import com.oanda.v20.primitives.InstrumentName;
+package bot.risk;
+
 import org.ta4j.core.BarSeries;
 import org.ta4j.core.indicators.helpers.ClosePriceIndicator;
 import org.ta4j.core.indicators.ATRIndicator;

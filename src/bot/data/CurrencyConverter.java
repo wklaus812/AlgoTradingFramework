@@ -1,17 +1,16 @@
+package bot.data;
+
 import com.oanda.v20.Context;
 import com.oanda.v20.ContextBuilder;
 import com.oanda.v20.pricing.ClientPrice;
 import com.oanda.v20.pricing.PricingGetRequest;
 import com.oanda.v20.pricing.PricingGetResponse;
-import com.oanda.v20.pricing_common.Price;
 import com.oanda.v20.primitives.InstrumentName;
-import org.apache.commons.math3.linear.ConjugateGradient;
 import org.ta4j.core.BarSeries;
 
+import bot.config.Config;
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashMap;
 
 public class CurrencyConverter {
@@ -65,13 +64,13 @@ public class CurrencyConverter {
     private static BigDecimal convertCurrency(InstrumentName instrument, BigDecimal amount) throws Exception {
         Context ctx = new ContextBuilder(Config.URL)
                 .setToken(Config.TOKEN)
-                .setApplication("CurrencyConverter")
+                .setApplication("java.data.CurrencyConverter")
                 .build();
 
         // If OANDA doesn't have a direct pair, you could add cross logic later
         ArrayList<InstrumentName> instruments = new ArrayList<>();
         instruments.add(instrument);
-        PricingGetRequest req = new PricingGetRequest(Config.ACCOUNTID, instruments);
+        PricingGetRequest req = new PricingGetRequest(Config.ACCOUNT_ID, instruments);
 
         PricingGetResponse resp = ctx.pricing.get(req);
         ClientPrice price = resp.getPrices().getFirst();
