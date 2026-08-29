@@ -12,4 +12,6 @@ public interface Broker<T, S> {
     Bar getLatestBar(S instrument);
     T placeMarketOrder(S instrument, int tradeSize, OrderDetails details);
     void closePosition(S instrument, T tradeId);
+    BigDecimal getClosePriceInUsd(S insstrument);
+
 }
