@@ -10,6 +10,9 @@ import com.oanda.v20.instrument.CandlestickGranularity;
 import com.oanda.v20.instrument.InstrumentCandlesRequest;
 import com.oanda.v20.instrument.InstrumentCandlesResponse;
 import com.oanda.v20.order.*;
+import com.oanda.v20.pricing.ClientPrice;
+import com.oanda.v20.pricing.PricingGetRequest;
+import com.oanda.v20.pricing.PricingGetResponse;
 import com.oanda.v20.primitives.InstrumentName;
 import com.oanda.v20.trade.TradeCloseRequest;
 import com.oanda.v20.trade.TradeCloseResponse;
@@ -24,16 +27,19 @@ import bot.config.Config;
 import bot.engine.OrderDetails;
 import java.math.BigDecimal;
 import java.time.*;
+import java.util.ArrayList;
 import java.util.List;
 
 public class OandaBroker implements Broker<TransactionID, InstrumentName> {
+
+    Context ctx = new ContextBuilder(Config.URL).setToken(Config.TOKEN).setApplication("OandaBroker").build();
 
     public OandaBroker() {}
 
     public BigDecimal getAccountBalance() {
         // Gets the current balance of the account
-        Context ctx = new ContextBuilder(Config.URL).setToken(Config.TOKEN).setApplication("GetAccountDetails").build();
-        BigDecimal accountBalance = new BigDecimal("0.0");
+
+        BigDecimal accountBalance;
 
         try {
             AccountGetResponse acc = ctx.account.get(Config.ACCOUNT_ID);
@@ -46,11 +52,6 @@ public class OandaBroker implements Broker<TransactionID, InstrumentName> {
 
     public BarSeries getHistoricalBarSeries(InstrumentName instrument) {
         BarSeries series = new BaseBarSeriesBuilder().withName("oanda_candles").build();
-
-        Context ctx = new ContextBuilder(Config.URL)
-                .setToken(Config.TOKEN)
-                .setApplication("GetBars")
-                .build();
 
         InstrumentCandlesRequest request = new InstrumentCandlesRequest(instrument)
                 .setGranularity(CandlestickGranularity.D)
@@ -86,10 +87,6 @@ public class OandaBroker implements Broker<TransactionID, InstrumentName> {
     }
 
     public BaseBar getLatestBar(InstrumentName instrument)  {
-        Context ctx = new ContextBuilder(Config.URL)
-                .setToken(Config.TOKEN)
-                .setApplication("GetLatestBar")
-                .build();
 
         InstrumentCandlesRequest request = new InstrumentCandlesRequest(instrument)
                 .setGranularity(CandlestickGranularity.D)
@@ -121,12 +118,8 @@ public class OandaBroker implements Broker<TransactionID, InstrumentName> {
     }
 
     public TransactionID placeMarketOrder(InstrumentName instrument, int tradeSize, OrderDetails details) {
-        Context ctx = new ContextBuilder(Config.URL)
-                .setToken(Config.TOKEN)
-                .setApplication("PlaceMarketOrder")
-                .build();
         AccountID accountId = Config.ACCOUNT_ID;
-        validateAccount(ctx, accountId);
+        validateAccount(accountId);
 
         // Build stop loss and take profit details if necessary
         StopLossDetails stopLossDetails = getStopLossDetails(details);
@@ -162,26 +155,64 @@ public class OandaBroker implements Broker<TransactionID, InstrumentName> {
         }
     }
 
+    // Builds Oanda stop loss details, based on provided distance
+    private StopLossDetails getStopLossDetails(OrderDetails details) {
+        // Return null if trailing stop loss is specified
+        if (details.getIsTrailingStopLoss()) return null;
+
+        StopLossDetails stopLossDetails = new StopLossDetails();
+        stopLossDetails.setDistance(details.getStopLossDistance());
+        return stopLossDetails;
+    }
+
+    // Builds Oanda trailing stop loss details, based on provided distance
+    private TrailingStopLossDetails getTrailingStopLossDetails(OrderDetails details) {
+        // Return null if normal stop loss is specified
+        if (!details.getIsTrailingStopLoss()) return null;
+
+        TrailingStopLossDetails trailingStopLossDetails = new TrailingStopLossDetails();
+        trailingStopLossDetails.setDistance(details.getStopLossDistance());
+        return trailingStopLossDetails;
+    }
+
+    // Builds Oanda take profit details, based on the provided price
+    private TakeProfitDetails getTakeProfitDetails(OrderDetails details) {
+        if (details.getTakeProfitPrice() == null) return null;
+
+        TakeProfitDetails takeProfitDetails = new TakeProfitDetails();
+        takeProfitDetails.setPrice(details.getTakeProfitPrice());
+        return takeProfitDetails;
+    }
+
     public void closePosition(InstrumentName instrument, TransactionID tradeId) {
-        Context ctx = new ContextBuilder(Config.URL)
-                .setToken(Config.TOKEN)
-                .setApplication("PlaceMarketOrder")
-                .build();
-
         AccountID accountId = Config.ACCOUNT_ID;
-        validateAccount(ctx, accountId);
+        validateAccount(accountId);
 
-        // Place market order
         try {
+            // Maybe do something with the response?
             TradeCloseResponse response = ctx.trade.close(new TradeCloseRequest(accountId, new TradeSpecifier(tradeId.toString())));
-
         } catch (RequestException | ExecuteException e) {
             throw new BrokerException("Unable to close position for " + instrument, e);
         }
     }
 
+    // Gets the close price of the instrument in USD, used for forex trading
+    public BigDecimal getClosePriceInUsd(InstrumentName instrument) {
+        ArrayList<InstrumentName> instruments = new ArrayList<>();
+        instruments.add(instrument);
+        PricingGetRequest req = new PricingGetRequest(Config.ACCOUNT_ID, instruments);
+
+        try {
+            PricingGetResponse resp = ctx.pricing.get(req);
+            ClientPrice price = resp.getPrices().getFirst();
+            return BigDecimal.valueOf(price.getQuoteHomeConversionFactors().getPositiveUnits().doubleValue());
+        }  catch (RequestException | ExecuteException e) {
+            throw new BrokerException("Unable retrieve close price in USD for " + instrument, e);
+        }
+    }
+
     // Helper method used for placing trades. Ensures the account exists and has a non-zero balance.
-    private void validateAccount(Context ctx, AccountID accountId) {
+    private void validateAccount(AccountID accountId) {
         // Ensure account exists
         try {
             // Execute the request and obtain a response object
@@ -196,7 +227,7 @@ public class OandaBroker implements Broker<TransactionID, InstrumentName> {
                     hasaccount = true;
             }
             if (!hasaccount)
-                throw new BrokerException("Account "+accountId+" not found");
+                throw new BrokerException("Account " + accountId + " not found");
         } catch (RequestException | ExecuteException e) {
             throw new BrokerException("Unable to find Oanda Account", e);
         }
@@ -239,32 +270,5 @@ public class OandaBroker implements Broker<TransactionID, InstrumentName> {
                 offsetDateTime.getSecond(), offsetDateTime.getNano(), ZoneId.of("America/Chicago"));
     }
 
-    // Builds Oanda stop loss details, based on provided distance
-    private StopLossDetails getStopLossDetails(OrderDetails details) {
-        // Return null if trailing stop loss is specified
-        if (details.getIsTrailingStopLoss()) return null;
 
-        StopLossDetails stopLossDetails = new StopLossDetails();
-        stopLossDetails.setDistance(details.getStopLossDistance());
-        return stopLossDetails;
-    }
-
-    // Builds Oanda trailing stop loss details, based on provided distance
-    private TrailingStopLossDetails getTrailingStopLossDetails(OrderDetails details) {
-        // Return null if normal stop loss is specified
-        if (!details.getIsTrailingStopLoss()) return null;
-
-        TrailingStopLossDetails trailingStopLossDetails = new TrailingStopLossDetails();
-        trailingStopLossDetails.setDistance(details.getStopLossDistance());
-        return trailingStopLossDetails;
-    }
-
-    // Builds Oanda take profit details, based on the provided price
-    private TakeProfitDetails getTakeProfitDetails(OrderDetails details) {
-        if (details.getTakeProfitPrice() == null) return null;
-
-        TakeProfitDetails takeProfitDetails = new TakeProfitDetails();
-        takeProfitDetails.setPrice(details.getTakeProfitPrice());
-        return takeProfitDetails;
-    }
 }

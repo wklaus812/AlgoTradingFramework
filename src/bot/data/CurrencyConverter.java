@@ -13,6 +13,8 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.HashMap;
 
+
+// Deprecated
 public class CurrencyConverter {
 
     public static HashMap<InstrumentName, Double> getClosePriceInUsdByInstrumentName(HashMap<InstrumentName, BarSeries> barSeriesByInstrumentName) throws Exception {
