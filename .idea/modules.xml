@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/BasicLiveDemoBot.iml" filepath="$PROJECT_DIR$/BasicLiveDemoBot.iml" />
+      <module fileurl="file://$PROJECT_DIR$/AlgoTradingFramework.iml" filepath="$PROJECT_DIR$/AlgoTradingFramework.iml" />
     </modules>
   </component>
 </project>
