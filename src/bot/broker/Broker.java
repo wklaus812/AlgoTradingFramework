@@ -13,5 +13,5 @@ public interface Broker<T, S> {
     T placeMarketOrder(S instrument, int tradeSize, OrderDetails details);
     void closePosition(S instrument, T tradeId);
     BigDecimal getClosePriceInUsd(S insstrument);
-
+    String getBrokerName();
 }

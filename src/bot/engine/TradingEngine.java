@@ -57,7 +57,7 @@ public class TradingEngine<T, S> {
             enterTrade(newBar, endIndex);
         } else if (strategy.shouldExit(endIndex) /* Add condition to ensure there is an open trade with this instrument,
                 this is where you would query the sql table */) {
-            closePosition();
+            closePosition(newBar, endIndex);
         } else {
             // No trade
             System.out.println("No trade: " + instrumentName);

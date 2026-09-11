@@ -3,6 +3,7 @@ package bot;
 import bot.broker.OandaBroker;
 import bot.data.CurrencyConverter;
 import bot.config.Config;
+import bot.data.Database;
 import bot.engine.OrderDetails;
 import bot.engine.TradingEngine;
 import bot.risk.PositionSizer;
@@ -133,6 +134,7 @@ public class Main {
     }
 
     public static void main(String[] args) throws Exception {
+        Database.connect();
         System.out.println("********************** Initialization **********************");
         // Need to build a map of TradeIds by instrument. If a position is opened, store the id in the map, if a position is closed
         // remove the Id from the map. Only close a position if there is trade id is blank for an instrument. Only open a position if trade id is not blank
@@ -145,7 +147,7 @@ public class Main {
 
         // Build the trading strategy
         // Build the strategy for each Instrument
-        HashMap<InstrumentName, BaseStrategy> strategiesByInstrumentName = buildStrategyMap(barSeriesByInstrumentName);
+        HashMap<InstrumentName, Strategy> strategiesByInstrumentName = buildStrategyMap(barSeriesByInstrumentName);
 
         // Initialize the trading history
         TradingRecord tradingRecord = new BaseTradingRecord();

@@ -32,7 +32,7 @@ import java.util.List;
 
 public class OandaBroker implements Broker<TransactionID, InstrumentName> {
 
-    Context ctx = new ContextBuilder(Config.URL).setToken(Config.TOKEN).setApplication("OandaBroker").build();
+    private final Context ctx = new ContextBuilder(Config.URL).setToken(Config.TOKEN).setApplication("OandaBroker").build();
 
     public OandaBroker() {}
 
@@ -270,5 +270,8 @@ public class OandaBroker implements Broker<TransactionID, InstrumentName> {
                 offsetDateTime.getSecond(), offsetDateTime.getNano(), ZoneId.of("America/Chicago"));
     }
 
+    public String getBrokerName() {
+        return "Oanda";
+    }
 
 }
