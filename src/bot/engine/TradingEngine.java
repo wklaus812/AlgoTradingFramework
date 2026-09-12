@@ -1,6 +1,7 @@
 package bot.engine;
 
 import bot.broker.Broker;
+import bot.data.Database;
 import bot.risk.PositionSizer;
 import com.oanda.v20.primitives.InstrumentName;
 import com.oanda.v20.transaction.TransactionID;
@@ -52,8 +53,7 @@ public class TradingEngine<T, S> {
 
         // Check entry and exit conditions
         int endIndex = series.getEndIndex();
-        if (strategy.shouldEnter(endIndex) /* Add condition to ensure there is not an open trade with this instrument,
-                this is where you would query the sql table */) {
+        if (strategy.shouldEnter(endIndex) && Database.isOpenTrade(broker.getBrokerName(), instrumentName.toString())) {
             enterTrade(newBar, endIndex);
         } else if (strategy.shouldExit(endIndex) /* Add condition to ensure there is an open trade with this instrument,
                 this is where you would query the sql table */) {
