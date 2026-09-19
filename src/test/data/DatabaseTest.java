@@ -42,12 +42,52 @@ public class DatabaseTest {
     void insertOpenTradeTwoSameBrokerAndInstrumentTest() {
         Assertions.assertTrue(Database.insertOpenTrade("Oanda", "00001", "EUR_USD", 1.15993, "2026-09-12 10:30:45"));
         Assertions.assertFalse(Database.insertOpenTrade("Oanda", "00002", "EUR_USD", 1.15993, "2026-09-12 10:30:45"));
-        Database.printAllRows();
+    }
+
+    // Close an open trade
+    @Test
+    void closeOpenTradeTest() {
+        Database.insertOpenTrade("Oanda", "00001", "EUR_USD", 1.15993, "2026-09-12 10:30:45");
+        Assertions.assertTrue(Database.closeOpenTrade("00001", "Oanda", 1.16015, "2026-09-18 10:32:28"));
+    }
+
+    // Attempt to close a trade that is already closed
+    @Test
+    void closeOpenTradeAlreadyClosedTest() {
+        Database.insertOpenTrade("Oanda", "00001", "EUR_USD", 1.15993, "2026-09-12 10:30:45");
+        Database.closeOpenTrade("00001", "Oanda", 1.16015, "2026-09-18 10:32:28");
+        Assertions.assertFalse(Database.closeOpenTrade("00001", "Oanda", 1.99999, "2026-09-18 11:11:11"));
+    }
+
+    // Attempt to close a trade that doesn't exist
+    @Test
+    void closeOpenTradeNotExistTest() {
+        Assertions.assertFalse(Database.closeOpenTrade("00001", "Oanda", 1.99999, "2026-09-18 11:11:11"));
+    }
+
+    // Attempt to close a trade with the same id, but a different broker
+    @Test
+    void closeOpenTradeSameIdDifferentBrokerTest() {
+        // Create two trades with different brokers, but the same id
+        Database.insertOpenTrade("Oanda", "00001", "EUR_USD", 1.15993, "2026-09-12 10:30:45");
+        Database.insertOpenTrade("Alpaca", "00001", "EUR_USD", 1.15993, "2026-09-12 10:30:45");
+
+        // Close just the Oanda trade
+        Assertions.assertTrue(Database.closeOpenTrade("00001", "Oanda", 1.16015, "2026-09-18 10:32:28"));
+
+        // Verify that the Alpaca trade is still open
+        Assertions.assertTrue(Database.isOpenTrade("Alpaca", "EUR_USD"));
     }
 
     @Test
     void isOpenTradeFalseTest() {
         Assertions.assertFalse(Database.isOpenTrade("Oanda", "EUR_USD"));
+    }
+
+    @Test
+    void isOpenTradeFalseForDifferentInstrumentTest() {
+        Database.insertOpenTrade("Oanda", "00001", "EUR_USD", 1.15993, "2026-09-12 10:30:45");
+        Assertions.assertFalse(Database.isOpenTrade("Oanda", "GBP_USD"));
     }
 
     @Test

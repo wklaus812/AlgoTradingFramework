@@ -12,6 +12,7 @@ import org.ta4j.core.utils.BarSeriesUtils;
 
 import java.awt.event.WindowStateListener;
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 
 public class TradingEngine<T, S> {
     // There will be an instance of a Trading Engine for each bar series / instrument
@@ -53,10 +54,9 @@ public class TradingEngine<T, S> {
 
         // Check entry and exit conditions
         int endIndex = series.getEndIndex();
-        if (strategy.shouldEnter(endIndex) && Database.isOpenTrade(broker.getBrokerName(), instrumentName.toString())) {
+        if (strategy.shouldEnter(endIndex) && !Database.isOpenTrade(broker.getBrokerName(), instrumentName.toString())) {
             enterTrade(newBar, endIndex);
-        } else if (strategy.shouldExit(endIndex) /* Add condition to ensure there is an open trade with this instrument,
-                this is where you would query the sql table */) {
+        } else if (strategy.shouldExit(endIndex) && Database.isOpenTrade(broker.getBrokerName(), instrumentName.toString())) {
             closePosition(newBar, endIndex);
         } else {
             // No trade
@@ -104,12 +104,12 @@ public class TradingEngine<T, S> {
 
         // Place trade
         T tradeId = broker.placeMarketOrder(instrumentName, Math.round(tradeSize), orderDetails);
-        // Need to store trade id in sql server
 
         // Only enter if market order is successful
         boolean entered = tradingRecord.enter(endIndex, newBar.getClosePrice(), DecimalNum.valueOf(100));
         if (entered) {
             Trade entry = tradingRecord.getLastEntry();
+            Database.insertOpenTrade(broker.getBrokerName(), tradeId.toString(), instrumentName.toString(), entry.getAmount().doubleValue(), LocalDateTime.now().toString());
 
             // **** Move this elsewhere
             // Print Trade Details
@@ -136,6 +136,7 @@ public class TradingEngine<T, S> {
         boolean exited = tradingRecord.exit(endIndex, newBar.getClosePrice(), DecimalNum.valueOf(10));
         if (exited) {
             Trade exit = tradingRecord.getLastExit();
+            //Database.closeOpenTrade( ); to do
             System.out.println("Exited on " + exit.getIndex() + " (price=" + exit.getNetPrice().doubleValue()
                     + ", amount=" + exit.getAmount().doubleValue() + ")");
         }

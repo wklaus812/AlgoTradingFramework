@@ -1,6 +1,5 @@
 package bot.data;
 
-import javax.xml.transform.Result;
 import java.sql.*;
 
 public class Database {
@@ -48,7 +47,7 @@ public class Database {
             java.sql.Statement stmt = conn.createStatement();
             stmt.execute(createTradeHistoryTable);
             stmt.execute(createUniqueIndex);
-            System.out.println("Table created.");
+            System.out.println("trades table created");
         } catch (SQLException e) {
             System.out.println(e.getMessage());
         }
@@ -78,7 +77,37 @@ public class Database {
         }
     }
 
-    public static void closeOpenTrade(String tradeId, double closePrice, double closeDate) {
+    public static boolean closeOpenTrade(String tradeId, String broker, double closePrice, String closeDate) {
+        String sql = """
+                UPDATE  trades
+                SET     close_price     = ?,
+                        close_date      = ?,
+                        open_trade      = 0
+                WHERE   broker_trade_id = ? AND
+                        broker          = ? AND
+                        open_trade      = 1
+                """;
+
+        try (Connection conn = DriverManager.getConnection(url); PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            // Set the statement parameters
+            pstmt.setDouble(1, closePrice);
+            pstmt.setString(2, closeDate);
+            pstmt.setString(3, tradeId);
+            pstmt.setString(4, broker);
+
+            // Execute query
+            int rowsUpdated = pstmt.executeUpdate();
+            if (rowsUpdated > 0) {
+                System.out.println("Trade closed");
+                return true;
+            } else {
+                System.out.println("No open trades found");
+                return false;
+            }
+        } catch (SQLException e) {
+            System.out.println(e.getMessage());
+            return false;
+        }
 
     }
 
@@ -123,9 +152,9 @@ public class Database {
                                 ", instrument=" + rs.getString("instrument") +
                                 ", open_trade=" + rs.getBoolean("open_trade") +
                                 ", open_price=" + rs.getDouble("open_price") +
-                                ", open_date=" + rs.getDouble("open_price") +
-                                ", close_price=" + rs.getDouble("open_price") +
-                                ", close_date=" + rs.getDouble("open_price")
+                                ", open_date=" + rs.getString("open_date") +
+                                ", close_price=" + rs.getDouble("close_price") +
+                                ", close_date=" + rs.getString("close_date")
                 );
             }
         } catch (SQLException e) {

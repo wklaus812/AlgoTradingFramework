@@ -2,10 +2,9 @@ package bot.config;
 
 import com.oanda.v20.account.AccountID;
 import com.oanda.v20.primitives.InstrumentName;
-import com.oanda.v20.transaction.TransactionID;
 import io.github.cdimascio.dotenv.Dotenv;
 
-import java.util.HashMap;
+import java.util.HashSet;
 
 public class Config {
     private Config() {}
@@ -24,46 +23,46 @@ public class Config {
         return value;
     }
 
-    public static HashMap<InstrumentName, TransactionID> getTransactionIdsByInstrumentName() {
-        HashMap<InstrumentName, TransactionID> transactionIdsByInstrumentName = new HashMap<InstrumentName, TransactionID>();
+    public static HashSet<InstrumentName> getForexInstrumentNames() {
+        HashSet<InstrumentName> forexInstrumentNames = new HashSet<>();
         // Major Pairs
-        transactionIdsByInstrumentName.put(new InstrumentName("EUR_USD"), null);
-        transactionIdsByInstrumentName.put(new InstrumentName("GBP_USD"), null);
-        transactionIdsByInstrumentName.put(new InstrumentName("USD_JPY"), null);
-        transactionIdsByInstrumentName.put(new InstrumentName("USD_CHF"), null);
-        transactionIdsByInstrumentName.put(new InstrumentName("USD_CAD"), null);
-        transactionIdsByInstrumentName.put(new InstrumentName("AUD_USD"), null);
-        transactionIdsByInstrumentName.put(new InstrumentName("NZD_USD"), null);
+        forexInstrumentNames.add(new InstrumentName("EUR_USD"));
+        forexInstrumentNames.add(new InstrumentName("GBP_USD"));
+        forexInstrumentNames.add(new InstrumentName("USD_JPY"));
+        forexInstrumentNames.add(new InstrumentName("USD_CHF"));
+        forexInstrumentNames.add(new InstrumentName("USD_CAD"));
+        forexInstrumentNames.add(new InstrumentName("AUD_USD"));
+        forexInstrumentNames.add(new InstrumentName("NZD_USD"));
 
         // Crosses
-        transactionIdsByInstrumentName.put(new InstrumentName("EUR_GBP"), null);
-        transactionIdsByInstrumentName.put(new InstrumentName("EUR_JPY"), null);
-        transactionIdsByInstrumentName.put(new InstrumentName("EUR_CAD"), null);
-        transactionIdsByInstrumentName.put(new InstrumentName("EUR_AUD"), null);
-        transactionIdsByInstrumentName.put(new InstrumentName("EUR_NZD"), null);
+        forexInstrumentNames.add(new InstrumentName("EUR_GBP"));
+        forexInstrumentNames.add(new InstrumentName("EUR_JPY"));
+        forexInstrumentNames.add(new InstrumentName("EUR_CAD"));
+        forexInstrumentNames.add(new InstrumentName("EUR_AUD"));
+        forexInstrumentNames.add(new InstrumentName("EUR_NZD"));
 
-        transactionIdsByInstrumentName.put(new InstrumentName("GBP_JPY"), null);
-        transactionIdsByInstrumentName.put(new InstrumentName("GBP_CHF"), null);
-        transactionIdsByInstrumentName.put(new InstrumentName("GBP_CAD"), null);
-        transactionIdsByInstrumentName.put(new InstrumentName("GBP_AUD"), null);
-        transactionIdsByInstrumentName.put(new InstrumentName("GBP_NZD"), null);
+        forexInstrumentNames.add(new InstrumentName("GBP_JPY"));
+        forexInstrumentNames.add(new InstrumentName("GBP_CHF"));
+        forexInstrumentNames.add(new InstrumentName("GBP_CAD"));
+        forexInstrumentNames.add(new InstrumentName("GBP_AUD"));
+        forexInstrumentNames.add(new InstrumentName("GBP_NZD"));
 
-        transactionIdsByInstrumentName.put(new InstrumentName("AUD_JPY"), null);
-        transactionIdsByInstrumentName.put(new InstrumentName("AUD_CHF"), null);
-        transactionIdsByInstrumentName.put(new InstrumentName("AUD_CAD"), null);
-        transactionIdsByInstrumentName.put(new InstrumentName("AUD_NZD"), null);
+        forexInstrumentNames.add(new InstrumentName("AUD_JPY"));
+        forexInstrumentNames.add(new InstrumentName("AUD_CHF"));
+        forexInstrumentNames.add(new InstrumentName("AUD_CAD"));
+        forexInstrumentNames.add(new InstrumentName("AUD_NZD"));
 
-        transactionIdsByInstrumentName.put(new InstrumentName("NZD_JPY"), null);
-        transactionIdsByInstrumentName.put(new InstrumentName("NZD_CHF"), null);
-        transactionIdsByInstrumentName.put(new InstrumentName("NZD_CAD"), null);
+        forexInstrumentNames.add(new InstrumentName("NZD_JPY"));
+        forexInstrumentNames.add(new InstrumentName("NZD_CHF"));
+        forexInstrumentNames.add(new InstrumentName("NZD_CAD"));
 
-        transactionIdsByInstrumentName.put(new InstrumentName("CAD_JPY"), null);
-        transactionIdsByInstrumentName.put(new InstrumentName("CAD_CHF"), null);
+        forexInstrumentNames.add(new InstrumentName("CAD_JPY"));
+        forexInstrumentNames.add(new InstrumentName("CAD_CHF"));
 
-        transactionIdsByInstrumentName.put(new InstrumentName("CHF_JPY"), null);
+        forexInstrumentNames.add(new InstrumentName("CHF_JPY"));
 
-        // transactionIdsByInstrumentName.put(new InstrumentName("EUR_CHF"), null); // This pair is optional, some people recommend against trading it
+        // forexInstrumentNames.add(new InstrumentName("EUR_CHF")); // This pair is optional, some people recommend against trading it
 
-        return transactionIdsByInstrumentName;
+        return forexInstrumentNames;
     }
 }

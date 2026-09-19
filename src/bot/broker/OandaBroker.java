@@ -67,7 +67,7 @@ public class OandaBroker implements Broker<TransactionID, InstrumentName> {
                 // Create Bar and add to list
                 BaseBar bar = new BaseBar(
                         Duration.ofDays(1),
-                        Instant.from(endTime),               // UPDATE THIS TO GET BEGIN TIME
+                        null,
                         Instant.from(endTime),
                         DecimalNum.valueOf(candle.getMid().getO().doubleValue()),
                         DecimalNum.valueOf(candle.getMid().getH().doubleValue()),
@@ -102,7 +102,7 @@ public class OandaBroker implements Broker<TransactionID, InstrumentName> {
             // Return bar
             return new BaseBar(
                     Duration.ofDays(1),
-                    Instant.from(endTime),              // UPDATE THIS TO GET BEGIN TIME
+                    null,              // UPDATE THIS TO GET BEGIN TIME
                     Instant.from(endTime),
                     DecimalNum.valueOf(latestCandle.getMid().getO().doubleValue()),
                     DecimalNum.valueOf(latestCandle.getMid().getH().doubleValue()),

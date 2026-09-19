@@ -7,6 +7,12 @@ out/
 target/
 *.iml
 ProjectBoard.txt
+identifier.sqlite
 
 ### Mac OS ###
 .DS_Store
+
+### Database Files ###
+*.db
+*.sqlite
+*.sqlite3
