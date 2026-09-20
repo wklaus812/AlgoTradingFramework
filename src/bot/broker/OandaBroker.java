@@ -37,8 +37,6 @@ public class OandaBroker implements Broker<TransactionID, InstrumentName> {
     public OandaBroker() {}
 
     public BigDecimal getAccountBalance() {
-        // Gets the current balance of the account
-
         BigDecimal accountBalance;
 
         try {
@@ -87,7 +85,6 @@ public class OandaBroker implements Broker<TransactionID, InstrumentName> {
     }
 
     public BaseBar getLatestBar(InstrumentName instrument)  {
-
         InstrumentCandlesRequest request = new InstrumentCandlesRequest(instrument)
                 .setGranularity(CandlestickGranularity.D)
                 .setAlignmentTimezone("America/Chicago")
@@ -99,10 +96,10 @@ public class OandaBroker implements Broker<TransactionID, InstrumentName> {
 
             ZonedDateTime endTime = getOandaEndTime(latestCandle);
 
-            // Return bar
+            // Return bar as TA4J Bar
             return new BaseBar(
                     Duration.ofDays(1),
-                    null,              // UPDATE THIS TO GET BEGIN TIME
+                    null,
                     Instant.from(endTime),
                     DecimalNum.valueOf(latestCandle.getMid().getO().doubleValue()),
                     DecimalNum.valueOf(latestCandle.getMid().getH().doubleValue()),
@@ -184,7 +181,9 @@ public class OandaBroker implements Broker<TransactionID, InstrumentName> {
         return takeProfitDetails;
     }
 
+    // Closes a position with the given trade id and instrument
     public void closePosition(InstrumentName instrument, TransactionID tradeId) {
+        InstrumentName inss = new InstrumentName("test");
         AccountID accountId = Config.ACCOUNT_ID;
         validateAccount(accountId);
 

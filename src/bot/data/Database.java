@@ -7,18 +7,20 @@ public class Database {
 
     private final static String createTradeHistoryTable = """
         CREATE TABLE IF NOT EXISTS trades (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            broker TEXT NOT NULL,
-            broker_trade_id TEXT,
-            instrument TEXT NOT NULL,
-            open_trade BOOLEAN NOT NULL DEFAULT 1,
-            open_price REAL,
-            close_price REAL,
-            open_date TEXT,
-            close_date TEXT
+            id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+            broker              TEXT NOT NULL,
+            broker_trade_id     TEXT,
+            instrument          TEXT NOT NULL,
+            open_trade          BOOLEAN NOT NULL DEFAULT 1,
+            open_price          REAL,
+            close_price         REAL,
+            open_date           TEXT,
+            close_date          TEXT,
+            trade_size          REAL
         );
         """;
 
+    // Ensures there will only be one open trade at a time for a given broker and instrument
     private final static String createUniqueIndex = """
             CREATE UNIQUE INDEX IF NOT EXISTS idx_one_open_per_instrument_per_broker
                 ON trades(broker, instrument)
@@ -53,10 +55,11 @@ public class Database {
         }
     }
 
-    public static boolean insertOpenTrade(String broker, String tradeId, String instrument, double openPrice, String openDate) {
+    // Logs a new open trade
+    public static boolean insertOpenTrade(String broker, String tradeId, String instrument, double openPrice, String openDate, double tradeSize) {
         String sql = """
-                INSERT INTO trades(broker, broker_trade_id, instrument, open_trade, open_price, open_date)
-                            VALUES(?, ?, ?, 1, ?, ?);
+                INSERT INTO trades(broker, broker_trade_id, instrument, open_trade, open_price, open_date, trade_size)
+                            VALUES(?, ?, ?, 1, ?, ?, ?);
                 """;
 
         try (Connection conn = DriverManager.getConnection(url); PreparedStatement pstmt = conn.prepareStatement(sql)) {
@@ -66,6 +69,7 @@ public class Database {
             pstmt.setString(3, instrument);
             pstmt.setDouble(4, openPrice);
             pstmt.setString(5, openDate);
+            pstmt.setDouble(6, tradeSize);
 
             // Execute query
             pstmt.executeUpdate();
@@ -77,6 +81,7 @@ public class Database {
         }
     }
 
+    // Marks a trade with the provided tradeId and broker as closed
     public static boolean closeOpenTrade(String tradeId, String broker, double closePrice, String closeDate) {
         String sql = """
                 UPDATE  trades
@@ -111,10 +116,9 @@ public class Database {
 
     }
 
-    // Checks if there is an open trade for the provided broker and instrument
-    public static boolean isOpenTrade(String broker, String instrument) {
+    public static String getOpenTradeId(String broker, String instrument) {
         String sql = """
-                SELECT  open_trade
+                SELECT  broker_trade_id
                 FROM    trades
                 WHERE   broker          = ?  AND
                         instrument      = ?  AND
@@ -126,12 +130,17 @@ public class Database {
             pstmt.setString(1, broker);
             pstmt.setString(2, instrument);
 
-            // Executes the query, rs.next() will return true/false depending on if there is a row
+            // Execute the query and return the trade id, if found
             ResultSet rs = pstmt.executeQuery();
-            return rs.next();
+            if (rs.next()) {
+                return rs.getString("broker_trade_id");
+            } else {
+                // Throw custom database exception?
+                return null;
+            }
         } catch (SQLException e) {
             System.out.println(e.getMessage());
-            return false;
+            return null;
         }
     }
 
@@ -154,7 +163,8 @@ public class Database {
                                 ", open_price=" + rs.getDouble("open_price") +
                                 ", open_date=" + rs.getString("open_date") +
                                 ", close_price=" + rs.getDouble("close_price") +
-                                ", close_date=" + rs.getString("close_date")
+                                ", close_date=" + rs.getString("close_date") +
+                                ", close_date=" + rs.getDouble("trade_size")
                 );
             }
         } catch (SQLException e) {
