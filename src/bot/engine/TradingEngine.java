@@ -9,16 +9,17 @@ import org.ta4j.core.num.DecimalNum;
 import org.ta4j.core.utils.BarSeriesUtils;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 
-public class TradingEngine<T, S> {
-    private Broker<T, S> broker;
+public class TradingEngine {
+    private Broker broker;
     private Strategy strategy;
-    private S instrumentName;
+    private String instrumentName;
     private BarSeries series;
     private TradingRecord tradingRecord;
 
-    public TradingEngine(Broker<T, S> broker, Strategy strategy, S instrumentName, BarSeries series, TradingRecord tradingRecord) {
+    public TradingEngine(Broker broker, Strategy strategy, String instrumentName, BarSeries series, TradingRecord tradingRecord) {
         this.broker = broker;
         this.strategy = strategy;
         this.instrumentName = instrumentName;
@@ -35,9 +36,9 @@ public class TradingEngine<T, S> {
 
         // Check entry and exit conditions
         int endIndex = series.getEndIndex();
-        if (strategy.shouldEnter(endIndex) && Database.getOpenTradeId(broker.getBrokerName(), instrumentName.toString()) == null) {
+        if (strategy.shouldEnter(endIndex) && Database.getOpenTradeId(broker.getBrokerName(), instrumentName) == null) {
             enterTrade(newBar, endIndex);
-        } else if (strategy.shouldExit(endIndex) && Database.getOpenTradeId(broker.getBrokerName(), instrumentName.toString()) != null) {
+        } else if (strategy.shouldExit(endIndex) && Database.getOpenTradeId(broker.getBrokerName(), instrumentName) != null) {
             closePosition(newBar, endIndex);
         } else {
             // No trade
@@ -50,11 +51,11 @@ public class TradingEngine<T, S> {
         // Get new bar and add to series or update if a bar already exists for time frame
         Bar newBar = broker.getLatestBar(instrumentName);
         if (!series.getLastBar().getEndTime().equals(newBar.getEndTime())) {
-            System.out.println("Bar added to " + instrumentName.toString() + ", close price = " + newBar.getClosePrice().doubleValue());
+            System.out.println("Bar added to " + instrumentName + ", close price = " + newBar.getClosePrice().doubleValue());
             series.addBar(newBar);
         } else {
             BarSeriesUtils.replaceBarIfChanged(series, newBar);
-            System.out.println("Last bar replaced for " + instrumentName.toString() + ", close price = " + newBar.getClosePrice().doubleValue());
+            System.out.println("Last bar replaced for " + instrumentName + ", close price = " + newBar.getClosePrice().doubleValue());
         }
     }
 
@@ -67,7 +68,7 @@ public class TradingEngine<T, S> {
                 series,                                     // Bar Series
                 14,                                         // ATR Period
                 new BigDecimal("1.5"),                  // ATR Multiplier
-                instrumentName.toString(),                  // Currency Pair as String (e.g. EUR_USD)
+                instrumentName,                             // Currency Pair as String (e.g. EUR_USD)
                 "USD",                                      // Account currency
                 broker.getClosePriceInUsd(instrumentName)   // Latest close price in USD
         );
@@ -80,15 +81,15 @@ public class TradingEngine<T, S> {
 
         // Stop Loss and Take Profit details
         OrderDetails orderDetails = new OrderDetails();
-        orderDetails.setStopLoss(new BigDecimal(stopLoss), true);
-        orderDetails.setTakeProfitPrice(new BigDecimal(takeProfit));
+        orderDetails.setStopLoss(getRoundedValue(instrumentName, new BigDecimal(stopLoss)), true);
+        orderDetails.setTakeProfitPrice(getRoundedValue(instrumentName, new BigDecimal(takeProfit)));
 
         // Place trade and log if successful
-        T tradeId = broker.placeMarketOrder(instrumentName, Math.round(tradeSize), orderDetails);
+        String tradeId = broker.placeMarketOrder(instrumentName, Math.round(tradeSize), orderDetails);
         if (tradeId != null) {
             tradingRecord.enter(endIndex, newBar.getClosePrice(), DecimalNum.valueOf(100));
             Trade entry = tradingRecord.getLastEntry();
-            Database.insertOpenTrade(broker.getBrokerName(), tradeId.toString(), instrumentName.toString(), entry.getAmount().doubleValue(), LocalDateTime.now().toString(), tradeSize);
+            Database.insertOpenTrade(broker.getBrokerName(), tradeId, instrumentName, entry.getAmount().doubleValue(), LocalDateTime.now().toString(), tradeSize);
 
             // **** Move this elsewhere
             // Print Trade Details
@@ -106,7 +107,7 @@ public class TradingEngine<T, S> {
 
     private void closePosition(Bar newBar, int endIndex) {
         // Close trade and log if successful
-        String tradeId = Database.getOpenTradeId(broker.getBrokerName(), instrumentName.toString());
+        String tradeId = Database.getOpenTradeId(broker.getBrokerName(), instrumentName);
         boolean tradeClosed = broker.closePosition(instrumentName, tradeId);
         if (tradeClosed) {
             tradingRecord.exit(endIndex, newBar.getClosePrice(), DecimalNum.valueOf(10));
@@ -125,6 +126,19 @@ public class TradingEngine<T, S> {
             System.out.println("=============================");
             // ****
         }
+    }
+
+    // Gets a rounded value based on the instrument
+    private static BigDecimal getRoundedValue(String instrument, BigDecimal value) {
+        BigDecimal roundedValue;
+
+        if (instrument.contains("JPY")) {
+            roundedValue = value.setScale(3, RoundingMode.HALF_UP);
+        } else {
+            roundedValue = value.setScale(5, RoundingMode.HALF_UP);
+        }
+
+        return roundedValue;
     }
 }
 

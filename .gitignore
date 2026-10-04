@@ -16,3 +16,4 @@ identifier.sqlite
 *.db
 *.sqlite
 *.sqlite3
+TradeHistory

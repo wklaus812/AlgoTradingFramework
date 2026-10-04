@@ -6,12 +6,12 @@ import org.ta4j.core.BarSeries;
 import bot.engine.OrderDetails;
 import java.math.BigDecimal;
 
-public interface Broker<T, S> {
+public interface Broker {
     BigDecimal getAccountBalance();
-    BarSeries getHistoricalBarSeries(S instrument);
-    Bar getLatestBar(S instrument);
-    T placeMarketOrder(S instrument, int tradeSize, OrderDetails details);
-    void closePosition(S instrument, T tradeId);
-    BigDecimal getClosePriceInUsd(S insstrument);
+    BarSeries getHistoricalBarSeries(String instrument);
+    Bar getLatestBar(String instrument);
+    String placeMarketOrder(String instrument, int tradeSize, OrderDetails details);
+    boolean closePosition(String instrument, String tradeId);
+    BigDecimal getClosePriceInUsd(String insstrument);
     String getBrokerName();
 }
