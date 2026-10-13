@@ -1,10 +1,5 @@
 package bot.risk;
 
-import org.ta4j.core.BarSeries;
-import org.ta4j.core.indicators.helpers.ClosePriceIndicator;
-import org.ta4j.core.indicators.ATRIndicator;
-import org.ta4j.core.num.Num;
-
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 
@@ -40,7 +35,6 @@ public class PositionSizer {
         // If the quote currency equals account currency: pipValuePerUnit = pipSize
         // For pairs where quoteCurrency != accountCurrency: pipValuePerUnit = pipSize * conversionRate (quote->account)
         String[] parts = pair.replace("/", "_").split("[_]");
-        String base = parts[0];
         String quote = parts[1];
 
         BigDecimal pipValuePerUnit;
@@ -48,8 +42,8 @@ public class PositionSizer {
             // Already in account currency (USD)
             pipValuePerUnit = pipSize;
         } else {
-            // Need conversion rate from quote -> USD
-            // Example: trading EUR/GBP with a USD account: quote = GBP, accountCurrency = USD
+            // Get conversion rate from quote to USD
+            // Ex: trading EUR/GBP with a USD account: quote = GBP, accountCurrency = USD
             // pipValuePerUnit = pipSize * (rate of quote/account)
             pipValuePerUnit = pipSize.multiply(conversionRate);
         }
