@@ -31,6 +31,7 @@ public class TradingEngine {
     public void run() {
         // Get current account balance and latest bar
         BigDecimal accountBalance = broker.getAccountBalance();
+        if (accountBalance.doubleValue() < 10) return;  // Don't trade if account balance is < $10
         getLatestbar();
         Bar newBar = series.getLastBar();
 
@@ -61,27 +62,31 @@ public class TradingEngine {
 
     private void enterTrade(Bar newBar, int endIndex) {
         // Place market order with Broker
+        // Determine ATR, stop loss, and take profit
+        double stopLossAtrMultiplier = 1.5;
+        double takeProfitAtrMultiplier = 3;
+
+        ATRIndicator atr = new ATRIndicator(series, 14);
+        double atrValue = atr.getValue(series.getEndIndex()).doubleValue();
+        double stopLossDistance = atrValue * stopLossAtrMultiplier;
+        double takeProfit = atrValue * takeProfitAtrMultiplier + series.getLastBar().getClosePrice().doubleValue();
+
         // Position size = (Account size * risk %) / (stop distance in pips * pipValue per unit)
         long tradeSize = PositionSizer.calculateUnits(
                 broker.getAccountBalance(),                  // Account Balance
                 new BigDecimal("0.01"),                 // Risk percentage
-                series,                                     // Bar Series
-                14,                                         // ATR Period
-                new BigDecimal("1.5"),                  // ATR Multiplier
+                new BigDecimal(stopLossDistance),           // Stop Loss Distance
                 instrumentName,                             // Currency Pair as String (e.g. EUR_USD)
                 "USD",                                      // Account currency
                 broker.getClosePriceInUsd(instrumentName)   // Latest close price in USD
         );
+        if (tradeSize == 0) return;
 
-        // Determine ATR, stop loss, and take profit
-        ATRIndicator atr = new ATRIndicator(series, 14);
-        double atrValue= atr.getValue(series.getEndIndex()).doubleValue();
-        double stopLoss = atrValue * 1.5;
-        double takeProfit = atrValue * 3 + series.getLastBar().getClosePrice().doubleValue();
+
 
         // Stop Loss and Take Profit details
         OrderDetails orderDetails = new OrderDetails();
-        orderDetails.setStopLoss(getRoundedValue(instrumentName, new BigDecimal(stopLoss)), true);
+        orderDetails.setStopLoss(getRoundedValue(instrumentName, new BigDecimal(stopLossDistance)), true);
         orderDetails.setTakeProfitPrice(getRoundedValue(instrumentName, new BigDecimal(takeProfit)));
 
         // Place trade and log if successful

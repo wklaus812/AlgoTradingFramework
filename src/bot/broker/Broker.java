@@ -12,6 +12,6 @@ public interface Broker {
     Bar getLatestBar(String instrument);
     String placeMarketOrder(String instrument, int tradeSize, OrderDetails details);
     boolean closePosition(String instrument, String tradeId);
-    BigDecimal getClosePriceInUsd(String insstrument);
+    BigDecimal getClosePriceInUsd(String instrument);
     String getBrokerName();
 }

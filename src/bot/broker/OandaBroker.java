@@ -178,7 +178,6 @@ public class OandaBroker implements Broker{
         if (details.getTakeProfitPrice() == null) return null;
 
         TakeProfitDetails takeProfitDetails = new TakeProfitDetails();
-        System.out.println(details.getTakeProfitPrice());
         takeProfitDetails.setPrice(details.getTakeProfitPrice());
         return takeProfitDetails;
     }
