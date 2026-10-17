@@ -1,8 +1,8 @@
-package bot.engine;
+package main.engine;
 
-import bot.broker.Broker;
-import bot.data.Database;
-import bot.risk.PositionSizer;
+import main.broker.Broker;
+import main.data.Database;
+import main.risk.PositionSizer;
 import org.ta4j.core.*;
 import org.ta4j.core.indicators.ATRIndicator;
 import org.ta4j.core.num.DecimalNum;
@@ -17,14 +17,12 @@ public class TradingEngine {
     private Strategy strategy;
     private String instrumentName;
     private BarSeries series;
-    private TradingRecord tradingRecord;
 
-    public TradingEngine(Broker broker, Strategy strategy, String instrumentName, BarSeries series, TradingRecord tradingRecord) {
+    public TradingEngine(Broker broker, Strategy strategy, String instrumentName, BarSeries series) {
         this.broker = broker;
         this.strategy = strategy;
         this.instrumentName = instrumentName;
         this.series = series;
-        this.tradingRecord = tradingRecord;
     }
 
     // Gets the latest bar, adds it to the series, and runs the strategy
@@ -82,26 +80,23 @@ public class TradingEngine {
         );
         if (tradeSize == 0) return;
 
-
-
         // Stop Loss and Take Profit details
         OrderDetails orderDetails = new OrderDetails();
         orderDetails.setStopLoss(getRoundedValue(instrumentName, new BigDecimal(stopLossDistance)), true);
         orderDetails.setTakeProfitPrice(getRoundedValue(instrumentName, new BigDecimal(takeProfit)));
 
         // Place trade and log if successful
-        String tradeId = broker.placeMarketOrder(instrumentName, Math.round(tradeSize), orderDetails);
-        if (tradeId != null) {
-            tradingRecord.enter(endIndex, newBar.getClosePrice(), DecimalNum.valueOf(100));
-            Trade entry = tradingRecord.getLastEntry();
-            Database.insertOpenTrade(broker.getBrokerName(), tradeId, instrumentName, entry.getAmount().doubleValue(), LocalDateTime.now().toString(), tradeSize);
+        FilledTradeDetails fillDetails = broker.placeMarketOrder(instrumentName, Math.round(tradeSize), orderDetails);
+        if (fillDetails != null) {
+            Database.insertOpenTrade(broker.getBrokerName(), fillDetails.getTradeId(), instrumentName, fillDetails.getFillPrice().doubleValue(),
+                    fillDetails.getFillDate().toString(), fillDetails.getUnits().doubleValue());
 
             // **** Move this elsewhere
             // Print Trade Details
             System.out.println("======= Trade Details =======");
             System.out.println("    Instrument: " + instrumentName);
-            System.out.println("    Price: " + entry.getAmount().doubleValue());
-            System.out.println("    Trade Size: " + tradeSize);
+            System.out.println("    Price: " + fillDetails.getFillPrice().doubleValue());
+            System.out.println("    Trade Size: " + fillDetails.getUnits().doubleValue());
             System.out.println("    Stop Loss: " + orderDetails.getStopLossDistance());
             System.out.println("    Take Profit: " + orderDetails.getTakeProfitPrice());
             System.out.println("=============================");
@@ -113,21 +108,19 @@ public class TradingEngine {
     private void closePosition(Bar newBar, int endIndex) {
         // Close trade and log if successful
         String tradeId = Database.getOpenTradeId(broker.getBrokerName(), instrumentName);
-        boolean tradeClosed = broker.closePosition(instrumentName, tradeId);
-        if (tradeClosed) {
-            tradingRecord.exit(endIndex, newBar.getClosePrice(), DecimalNum.valueOf(10));
-            Position closedPosition = tradingRecord.getLastPosition();
-            Database.closeOpenTrade(tradeId, broker.getBrokerName(), newBar.getClosePrice().doubleValue(), LocalDateTime.now().toString());
+        FilledTradeDetails fillDetails = broker.closePosition(instrumentName, tradeId);
+        if (fillDetails != null) {
+            Database.closeOpenTrade(tradeId, broker.getBrokerName(), fillDetails.getFillPrice().doubleValue(), fillDetails.getFillDate().toString());
 
             // **** Move this elsewhere
             // Print Trade Details
             System.out.println("======= Trade Closed =======");
             System.out.println("    Instrument: " + instrumentName);
-            System.out.println("    Close Price: " + closedPosition.getExit().getNetPrice());
-            System.out.println("    Trade Size: " + closedPosition.getExit().getAmount().doubleValue());
-            System.out.println("    Gross Profit: " + closedPosition.getGrossProfit());
-            System.out.println("    Net Profit: " + closedPosition.getProfit());
-            System.out.println("    Gross Return: " + closedPosition.getGrossReturn());
+//            System.out.println("    Close Price: " + closedPosition.getExit().getNetPrice());
+//            System.out.println("    Trade Size: " + closedPosition.getExit().getAmount().doubleValue());
+//            System.out.println("    Gross Profit: " + closedPosition.getGrossProfit());
+//            System.out.println("    Net Profit: " + closedPosition.getProfit());
+//            System.out.println("    Gross Return: " + closedPosition.getGrossReturn());
             System.out.println("=============================");
             // ****
         }

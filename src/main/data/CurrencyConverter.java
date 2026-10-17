@@ -1,4 +1,4 @@
-package bot.data;
+package main.data;
 
 import com.oanda.v20.Context;
 import com.oanda.v20.ContextBuilder;
@@ -8,7 +8,7 @@ import com.oanda.v20.pricing.PricingGetResponse;
 import com.oanda.v20.primitives.InstrumentName;
 import org.ta4j.core.BarSeries;
 
-import bot.config.Config;
+import main.config.Config;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.HashMap;

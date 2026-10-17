@@ -1,4 +1,4 @@
-package bot.config;
+package main.config;
 
 import com.oanda.v20.account.AccountID;
 import io.github.cdimascio.dotenv.Dotenv;

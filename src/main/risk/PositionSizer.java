@@ -1,4 +1,4 @@
-package bot.risk;
+package main.risk;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;

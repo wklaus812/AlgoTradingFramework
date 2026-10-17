@@ -1,4 +1,4 @@
-package bot.broker;
+package main.broker;
 
 import com.oanda.v20.Context;
 import com.oanda.v20.ContextBuilder;
@@ -18,13 +18,14 @@ import com.oanda.v20.trade.TradeCloseRequest;
 import com.oanda.v20.trade.TradeCloseResponse;
 import com.oanda.v20.trade.TradeSpecifier;
 import com.oanda.v20.transaction.*;
+import main.engine.FilledTradeDetails;
 import org.ta4j.core.BarSeries;
 import org.ta4j.core.BaseBar;
 import org.ta4j.core.BaseBarSeriesBuilder;
 import org.ta4j.core.num.DecimalNum;
 
-import bot.config.Config;
-import bot.engine.OrderDetails;
+import main.config.Config;
+import main.engine.OrderDetails;
 import java.math.BigDecimal;
 import java.time.*;
 import java.util.ArrayList;
@@ -36,6 +37,7 @@ public class OandaBroker implements Broker{
 
     public OandaBroker() {}
 
+    @Override
     public BigDecimal getAccountBalance() {
         BigDecimal accountBalance;
 
@@ -48,6 +50,7 @@ public class OandaBroker implements Broker{
         return accountBalance;
     }
 
+    @Override
     public BarSeries getHistoricalBarSeries(String instrument) {
         BarSeries series = new BaseBarSeriesBuilder().withName("oanda_candles").build();
 
@@ -84,6 +87,7 @@ public class OandaBroker implements Broker{
         return series;
     }
 
+    @Override
     public BaseBar getLatestBar(String instrument)  {
         InstrumentCandlesRequest request = new InstrumentCandlesRequest(new InstrumentName(instrument))
                 .setGranularity(CandlestickGranularity.D)
@@ -115,7 +119,8 @@ public class OandaBroker implements Broker{
     }
 
     // Returns the TradeId as a String
-    public String placeMarketOrder(String instrument, int tradeSize, OrderDetails details) {
+    @Override
+    public FilledTradeDetails placeMarketOrder(String instrument, int tradeSize, OrderDetails details) {
         AccountID accountId = Config.ACCOUNT_ID;
         validateAccount(accountId);
 
@@ -145,9 +150,15 @@ public class OandaBroker implements Broker{
             OrderCreateResponse response = ctx.order.create(request);
             OrderFillTransaction transaction = response.getOrderFillTransaction();
 
-            txnId = transaction.getId();
-            return txnId.toString();
+            // Check if filled
+            if (transaction.getTradeOpened() == null) {return null;}
 
+            return new FilledTradeDetails(
+                    transaction.getTradeOpened().getTradeID().toString(),
+                    transaction.getTradeOpened().getPrice().bigDecimalValue(),
+                    Instant.parse(transaction.getTime()),
+                    transaction.getTradeOpened().getUnits().bigDecimalValue()
+            );
         } catch (RequestException | ExecuteException e) {
             throw new BrokerException("Unable to place market order for " + instrument, e);
         }
@@ -183,19 +194,33 @@ public class OandaBroker implements Broker{
     }
 
     // Closes a position with the given trade id and instrument
-    public boolean closePosition(String instrument, String tradeId) {
+    @Override
+    public FilledTradeDetails closePosition(String instrument, String tradeId) {
         AccountID accountId = Config.ACCOUNT_ID;
         validateAccount(accountId);
 
         try {
-            ctx.trade.close(new TradeCloseRequest(accountId, new TradeSpecifier(tradeId)));
-            return true;
+            TradeCloseResponse closeResponse = ctx.trade.close(new TradeCloseRequest(accountId, new TradeSpecifier(tradeId)));
+            // This method will always close just one trade
+            TradeReduce trade = closeResponse.getOrderFillTransaction().getTradesClosed().getFirst();
+
+            if (trade == null) return null; // Trade wasn't closed
+
+            FilledTradeDetails fillDetails = new FilledTradeDetails(
+                    trade.getTradeID().toString(),
+                    trade.getPrice().bigDecimalValue(),
+                    Instant.parse(closeResponse.getOrderFillTransaction().getTime()),
+                    trade.getUnits().bigDecimalValue()
+            );
+
+            return fillDetails;
         } catch (RequestException | ExecuteException e) {
             throw new BrokerException("Unable to close position for " + instrument, e);
         }
     }
 
     // Gets the close price of the instrument in USD, used for forex trading
+    @Override
     public BigDecimal getClosePriceInUsd(String instrument) {
         ArrayList<String> instruments = new ArrayList<>();
         instruments.add(instrument);
@@ -269,6 +294,7 @@ public class OandaBroker implements Broker{
                 offsetDateTime.getSecond(), offsetDateTime.getNano(), ZoneId.of("America/Chicago"));
     }
 
+    @Override
     public String getBrokerName() {
         return "Oanda";
     }
