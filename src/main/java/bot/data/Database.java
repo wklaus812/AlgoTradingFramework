@@ -1,4 +1,4 @@
-package main.data;
+package bot.data;
 
 import java.sql.*;
 

@@ -1,6 +1,6 @@
-package test.data;
+package bot.data;
 
-import main.data.Database;
+import bot.data.Database;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.io.TempDir;
 import java.nio.file.Path;

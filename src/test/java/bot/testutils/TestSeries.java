@@ -1,4 +1,4 @@
-package test.testutils;
+package bot.testutils;
 
 import org.ta4j.core.Bar;
 import org.ta4j.core.BarSeries;

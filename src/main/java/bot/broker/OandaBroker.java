@@ -1,4 +1,4 @@
-package main.broker;
+package bot.broker;
 
 import com.oanda.v20.Context;
 import com.oanda.v20.ContextBuilder;
@@ -18,14 +18,13 @@ import com.oanda.v20.trade.TradeCloseRequest;
 import com.oanda.v20.trade.TradeCloseResponse;
 import com.oanda.v20.trade.TradeSpecifier;
 import com.oanda.v20.transaction.*;
-import main.engine.FilledTradeDetails;
 import org.ta4j.core.BarSeries;
 import org.ta4j.core.BaseBar;
 import org.ta4j.core.BaseBarSeriesBuilder;
 import org.ta4j.core.num.DecimalNum;
 
-import main.config.Config;
-import main.engine.OrderDetails;
+import bot.Config;
+
 import java.math.BigDecimal;
 import java.time.*;
 import java.util.ArrayList;

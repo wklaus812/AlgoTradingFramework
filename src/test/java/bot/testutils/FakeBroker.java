@@ -1,8 +1,8 @@
-package test.testutils;
+package bot.testutils;
 
-import main.broker.Broker;
-import main.engine.FilledTradeDetails;
-import main.engine.OrderDetails;
+import bot.broker.Broker;
+import bot.broker.FilledTradeDetails;
+import bot.broker.OrderDetails;
 import org.ta4j.core.Bar;
 import org.ta4j.core.BarSeries;
 

@@ -1,4 +1,6 @@
-package main.risk;
+package bot.engine;
+
+import bot.Config;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -20,8 +22,8 @@ public class PositionSizer {
                                       String pair,
                                       String accountCurrency,
                                       BigDecimal conversionRate) {
-        // If account balance is < $10, don't trade
-        if (accountBalance.doubleValue() < 10) {
+        // If account balance is < Min Balance to Trade ($10), don't trade
+        if (accountBalance.doubleValue() < Config.MIN_BALANCE_TO_TRADE) {
             return 0;
         }
 

@@ -1,10 +1,8 @@
-package main.broker;
+package bot.broker;
 
-import main.engine.FilledTradeDetails;
 import org.ta4j.core.Bar;
 import org.ta4j.core.BarSeries;
 
-import main.engine.OrderDetails;
 import java.math.BigDecimal;
 
 public interface Broker {

@@ -1,4 +1,4 @@
-package main.strategy;
+package bot.strategy;
 
 import org.ta4j.core.BarSeries;
 import org.ta4j.core.Strategy;

@@ -1,15 +1,13 @@
-package main;
+package bot;
 
-import main.broker.OandaBroker;
-import main.config.Config;
-import main.data.Database;
-import main.engine.TradingEngine;
+import bot.broker.OandaBroker;
+import bot.data.Database;
+import bot.engine.TradingEngine;
 
-import main.strategy.EmaCrossStrategyFactory;
+import bot.strategy.EmaCrossStrategyFactory;
 import org.ta4j.core.*;
 import org.ta4j.core.num.Num;
 
-import java.time.*;
 import java.util.*;
 
 public class Main {

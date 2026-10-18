@@ -1,16 +1,16 @@
-package main.engine;
+package bot.engine;
 
-import main.broker.Broker;
-import main.data.Database;
-import main.risk.PositionSizer;
+import bot.broker.Broker;
+import bot.Config;
+import bot.broker.FilledTradeDetails;
+import bot.broker.OrderDetails;
+import bot.data.Database;
 import org.ta4j.core.*;
 import org.ta4j.core.indicators.ATRIndicator;
-import org.ta4j.core.num.DecimalNum;
 import org.ta4j.core.utils.BarSeriesUtils;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.time.LocalDateTime;
 
 public class TradingEngine {
     private Broker broker;
@@ -29,20 +29,20 @@ public class TradingEngine {
     public void run() {
         // Get current account balance and latest bar
         BigDecimal accountBalance = broker.getAccountBalance();
-        if (accountBalance.doubleValue() < 10) return;  // Don't trade if account balance is < $10
+        if (accountBalance.doubleValue() < Config.MIN_BALANCE_TO_TRADE) return;  // Don't trade if account balance is < specified minimum ($10)
         getLatestbar();
-        Bar newBar = series.getLastBar();
 
         // Check entry and exit conditions
         int endIndex = series.getEndIndex();
         if (strategy.shouldEnter(endIndex) && Database.getOpenTradeId(broker.getBrokerName(), instrumentName) == null) {
-            enterTrade(newBar, endIndex);
+            enterTrade();
         } else if (strategy.shouldExit(endIndex) && Database.getOpenTradeId(broker.getBrokerName(), instrumentName) != null) {
-            closePosition(newBar, endIndex);
-        } else {
-            // No trade
-            System.out.println("No trade: " + instrumentName);
+            closePosition();
         }
+//        else {
+//            // No trade
+//            // SL4J log here: No trade for <instrument>
+//        }
     }
 
     // Gets the most recent bar from the broker
@@ -58,7 +58,7 @@ public class TradingEngine {
         }
     }
 
-    private void enterTrade(Bar newBar, int endIndex) {
+    private void enterTrade() {
         // Place market order with Broker
         // Determine ATR, stop loss, and take profit
         double stopLossAtrMultiplier = 1.5;
@@ -71,7 +71,7 @@ public class TradingEngine {
 
         // Position size = (Account size * risk %) / (stop distance in pips * pipValue per unit)
         long tradeSize = PositionSizer.calculateUnits(
-                broker.getAccountBalance(),                  // Account Balance
+                broker.getAccountBalance(),                 // Account Balance
                 new BigDecimal("0.01"),                 // Risk percentage
                 new BigDecimal(stopLossDistance),           // Stop Loss Distance
                 instrumentName,                             // Currency Pair as String (e.g. EUR_USD)
@@ -91,38 +91,19 @@ public class TradingEngine {
             Database.insertOpenTrade(broker.getBrokerName(), fillDetails.getTradeId(), instrumentName, fillDetails.getFillPrice().doubleValue(),
                     fillDetails.getFillDate().toString(), fillDetails.getUnits().doubleValue());
 
-            // **** Move this elsewhere
-            // Print Trade Details
-            System.out.println("======= Trade Details =======");
-            System.out.println("    Instrument: " + instrumentName);
-            System.out.println("    Price: " + fillDetails.getFillPrice().doubleValue());
-            System.out.println("    Trade Size: " + fillDetails.getUnits().doubleValue());
-            System.out.println("    Stop Loss: " + orderDetails.getStopLossDistance());
-            System.out.println("    Take Profit: " + orderDetails.getTakeProfitPrice());
-            System.out.println("=============================");
-            // ****
+            // SL4J log here: current date/time, Instrument, fill price, trade size, stop loss price, and take profit price
         }
 
     }
 
-    private void closePosition(Bar newBar, int endIndex) {
+    private void closePosition() {
         // Close trade and log if successful
         String tradeId = Database.getOpenTradeId(broker.getBrokerName(), instrumentName);
         FilledTradeDetails fillDetails = broker.closePosition(instrumentName, tradeId);
         if (fillDetails != null) {
             Database.closeOpenTrade(tradeId, broker.getBrokerName(), fillDetails.getFillPrice().doubleValue(), fillDetails.getFillDate().toString());
 
-            // **** Move this elsewhere
-            // Print Trade Details
-            System.out.println("======= Trade Closed =======");
-            System.out.println("    Instrument: " + instrumentName);
-//            System.out.println("    Close Price: " + closedPosition.getExit().getNetPrice());
-//            System.out.println("    Trade Size: " + closedPosition.getExit().getAmount().doubleValue());
-//            System.out.println("    Gross Profit: " + closedPosition.getGrossProfit());
-//            System.out.println("    Net Profit: " + closedPosition.getProfit());
-//            System.out.println("    Gross Return: " + closedPosition.getGrossReturn());
-            System.out.println("=============================");
-            // ****
+            // SL4J log here: current date/time, Instrument, close price, trade size, gross profit, net profit, return
         }
     }
 

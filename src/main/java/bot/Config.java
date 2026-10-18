@@ -1,4 +1,4 @@
-package main.config;
+package bot;
 
 import com.oanda.v20.account.AccountID;
 import io.github.cdimascio.dotenv.Dotenv;
@@ -11,6 +11,7 @@ public class Config {
     public static final String URL = "https://api-fxpractice.oanda.com";
     public static final String TOKEN = getEnv("OANDA_API_TOKEN");
     public static final AccountID ACCOUNT_ID = new AccountID(getEnv("OANDA_ACCOUNT_ID"));
+    public static final double MIN_BALANCE_TO_TRADE = 10.0;
 
     private static String getEnv(String name) {
         String value = dotenv.get(name);

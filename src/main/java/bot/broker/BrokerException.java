@@ -1,4 +1,4 @@
-package main.broker;
+package bot.broker;
 
 public class BrokerException extends RuntimeException {
 

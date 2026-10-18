@@ -1,6 +1,6 @@
-package test.risk;
+package bot.engine;
 
-import main.risk.PositionSizer;
+import bot.engine.PositionSizer;
 import org.junit.jupiter.api.*;
 
 import java.math.BigDecimal;
