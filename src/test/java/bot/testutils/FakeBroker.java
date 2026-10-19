@@ -7,22 +7,26 @@ import org.ta4j.core.Bar;
 import org.ta4j.core.BarSeries;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 
 public class FakeBroker implements Broker {
 
-    private BigDecimal balance;
-    private BigDecimal conversionRate;
+    private BigDecimal balance = new BigDecimal("10000"); // Default balance is $10,000
+    private BigDecimal conversionRate = BigDecimal.ONE;
+    private Bar nextBar;
+    private FilledTradeDetails fakeMarketOrderFillDetails = new FilledTradeDetails("00001", new BigDecimal("1"), Instant.now(), new BigDecimal("10"));
 
-    public FakeBroker() {}
+    public FakeBroker(Bar nextBar) {
+        this.nextBar = nextBar;
+    }
 
     @Override
     public BigDecimal getAccountBalance() {
-        if (balance != null) return balance;
-        return new BigDecimal("10000"); // Default balance is $10,000
+        return balance;
     }
 
-    public void withBalance(BigDecimal b) {
-        balance = b;
+    public void withBalance(BigDecimal balance) {
+        this.balance = balance;
     }
 
     @Override
@@ -32,17 +36,25 @@ public class FakeBroker implements Broker {
 
     @Override
     public Bar getLatestBar(String instrument) {
-        return null;
+        return nextBar;
+    }
+
+    public void withNextBar(Bar nextBar) {
+        this.nextBar = nextBar;
     }
 
     @Override
     public FilledTradeDetails placeMarketOrder(String instrument, int tradeSize, OrderDetails details) {
-        return null;
+        return fakeMarketOrderFillDetails;
+    }
+
+    public void withMarketOrderFilledTradeDetails(String tradeId, BigDecimal fillPrice, Instant fillDate, BigDecimal units) {
+        fakeMarketOrderFillDetails = new FilledTradeDetails(tradeId, fillPrice, fillDate, units);
     }
 
     @Override
     public FilledTradeDetails closePosition(String instrument, String tradeId) {
-        return false;
+        return null;
     }
 
     @Override
@@ -50,8 +62,8 @@ public class FakeBroker implements Broker {
         return null;
     }
 
-    public void withUsdConversion(BigDecimal c) {
-        conversionRate = c;
+    public void withUsdConversion(BigDecimal conversionRate) {
+        this.conversionRate = conversionRate;
     }
 
     @Override

@@ -23,7 +23,7 @@ public class PositionSizer {
                                       String accountCurrency,
                                       BigDecimal conversionRate) {
         // If account balance is < Min Balance to Trade ($10), don't trade
-        if (accountBalance.doubleValue() < Config.MIN_BALANCE_TO_TRADE) {
+        if (accountBalance.doubleValue() < 10) {
             return 0;
         }
 

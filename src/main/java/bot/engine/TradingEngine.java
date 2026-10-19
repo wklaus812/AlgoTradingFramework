@@ -29,8 +29,8 @@ public class TradingEngine {
     public void run() {
         // Get current account balance and latest bar
         BigDecimal accountBalance = broker.getAccountBalance();
-        if (accountBalance.doubleValue() < Config.MIN_BALANCE_TO_TRADE) return;  // Don't trade if account balance is < specified minimum ($10)
-        getLatestbar();
+        if (accountBalance.doubleValue() < 10) return;  // Don't trade if account balance is < specified minimum ($10)
+        updateSeriesWithLatestBar();
 
         // Check entry and exit conditions
         int endIndex = series.getEndIndex();
@@ -45,8 +45,8 @@ public class TradingEngine {
 //        }
     }
 
-    // Gets the most recent bar from the broker
-    private void getLatestbar() {
+    // Gets the most recent bar from the broker and adds it to the series
+    private void updateSeriesWithLatestBar() {
         // Get new bar and add to series or update if a bar already exists for time frame
         Bar newBar = broker.getLatestBar(instrumentName);
         if (!series.getLastBar().getEndTime().equals(newBar.getEndTime())) {

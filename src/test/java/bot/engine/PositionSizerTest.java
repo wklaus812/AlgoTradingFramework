@@ -1,6 +1,5 @@
 package bot.engine;
 
-import bot.engine.PositionSizer;
 import org.junit.jupiter.api.*;
 
 import java.math.BigDecimal;

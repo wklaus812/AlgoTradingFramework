@@ -8,6 +8,8 @@ public class TestStrategy implements Strategy {
     private boolean enterNext;
     private boolean exitNext;
 
+    public TestStrategy() {}
+
     @Override
     public boolean shouldEnter(int index) {
         return enterNext;
