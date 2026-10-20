@@ -18,100 +18,121 @@ import static org.junit.jupiter.api.Assertions.*;
 
 public class TradingEngineTest {
 
-    // -- Set up test database --
-
+    // -- Set up --
     @TempDir
     Path tempDir;
 
+    private BarSeries testSeries;
+    private FakeBroker fakeBroker;
+    private TestStrategy testStrategy;
+
     @BeforeEach
     void setUp() {
+        // Set up database
         String testDbPath = tempDir.resolve("test.db").toString();
         Database.connectTestContext("jdbc:sqlite:" + testDbPath);
+
+        // Seed data
+        testStrategy = new TestStrategy();
+        testSeries = TestSeries.flat(50, 1.1220, 0.006);
+        fakeBroker = new FakeBroker(TestSeries.nextBar(testSeries, 1.1240, 0.003));
     }
 
     // -- Run() Tests --
 
-    @Test
-    void exampleTest() {
-        TestSeries.flat(60, 1.10, 0.0020);
-    }
-
     // Enter Trade Scenario Tests
     @Test
-    void runEnterTradeNoOpenTradeTest() {
-        // Create the strategy and have it enter on next run
-        TestStrategy testStrategy = new TestStrategy();
+    void runEnterTradeSuccessTest() {
+        // Set the strategy to enter on next run and add the fill details for the next trade
         testStrategy.setEnterNext(true);
-
-        // Create the test series, fake broker, and set the fill details for the next trade
-        BarSeries testSeries = TestSeries.flat(50, 1.1220, 0.01);
-        FakeBroker fakeBroker = new FakeBroker(TestSeries.nextBar(testSeries, 1.1420, 0.3));
         fakeBroker.withMarketOrderFilledTradeDetails("00001", new BigDecimal("1.1415"), Instant.now(), new BigDecimal("10"));
 
         // Confirm there are no open trades
         assertNull(Database.getOpenTradeId(fakeBroker.getBrokerName(), "EUR_USD"));
+        assertEquals(0, fakeBroker.placedMarketOrders.size());
 
         // Run the engine
-        TradingEngine engine = new TradingEngine(
-                fakeBroker,
-                testStrategy,
-                "EUR_USD",
-                testSeries
-        );
+        TradingEngine engine = new TradingEngine(fakeBroker, testStrategy, "EUR_USD", testSeries);
         engine.run();
 
-        // Confirm that the trade has been logged to the database
+        // Confirm that the trade was placed with the broker and has been logged to the database
+        assertEquals(1, fakeBroker.placedMarketOrders.size());
+        assertEquals("00001", fakeBroker.placedMarketOrders.getFirst().getTradeId());
         assertEquals("00001", Database.getOpenTradeId(fakeBroker.getBrokerName(), "EUR_USD"));
     }
 
     @Test
-    void runEnterTradeWithOpenTrade() {
-        // Create the strategy and have it enter on next run
-        TestStrategy testStrategy = new TestStrategy();
+    void runEnterTradeWithOpenTradeTest() {
+        // Set the strategy to enter on next run and add the fill details for the next trade
         testStrategy.setEnterNext(true);
-
-        // Create the test series, fake broker, and set the fill details for the next trade
-        BarSeries testSeries = TestSeries.flat(50, 1.1220, 0.01);
-        FakeBroker fakeBroker = new FakeBroker(TestSeries.nextBar(testSeries, 1.1420, 0.3));
-        fakeBroker.withMarketOrderFilledTradeDetails("00002", new BigDecimal("1.1415"), Instant.now(), new BigDecimal("10"));
+        fakeBroker.withMarketOrderFilledTradeDetails("00002", new BigDecimal("1.1215"), Instant.now(), new BigDecimal("10"));
 
         // Insert an open trade into the database
         Database.insertOpenTrade(fakeBroker.getBrokerName(), "00001", "EUR_USD", 1.1411,
                 Instant.now().minus(Duration.ofDays(1)).toString(), 15);
 
+        // Confirm that no trades have been placed in the current session
+        assertEquals(0, fakeBroker.placedMarketOrders.size());
+
         // Run the engine
-        TradingEngine engine = new TradingEngine(
-                fakeBroker,
-                testStrategy,
-                "EUR_USD",
-                testSeries
-        );
+        TradingEngine engine = new TradingEngine(fakeBroker, testStrategy, "EUR_USD", testSeries);
         engine.run();
 
         // Confirm that the trade wasn't logged to the database and that the original trade is still open
+        assertEquals(0, fakeBroker.placedMarketOrders.size());
         assertEquals("00001", Database.getOpenTradeId(fakeBroker.getBrokerName(), "EUR_USD"));
     }
 
     // Close Trade Scenario Tests
-        // test to confirm open trade
+    @Test
+    void runClosePositionSuccessTest() {
+        // Open a position
+        testStrategy.setEnterNext(true);
+        fakeBroker.withMarketOrderFilledTradeDetails("00001", new BigDecimal("1.1215"), Instant.now(), new BigDecimal("10"));
+        TradingEngine engine = new TradingEngine(fakeBroker, testStrategy, "EUR_USD", testSeries);
+        engine.run();
+
+        // Confirm that the position was opened
+        assertEquals("00001", Database.getOpenTradeId(fakeBroker.getBrokerName(), "EUR_USD"));
+
+        // Add the next bar, set to exit next, and run the engine again
+        fakeBroker.withNextBar(TestSeries.nextBar(testSeries, 1.1291, 0.01));
+        fakeBroker.withClosePositionFilledTradeDetails("00001", new BigDecimal("1.1285"), Instant.now(), new BigDecimal("10"));
+        testStrategy.setEnterNext(false);
+        testStrategy.setExitNext(true);
+        engine.run();
+
+        // Confirm that the position was closed
+        assertNull(Database.getOpenTradeId(fakeBroker.getBrokerName(), "EUR_USD"));
+        assertEquals(1, fakeBroker.closedPositions.size());
+        assertEquals("00001", fakeBroker.closedPositions.getFirst().getTradeId());
+    }
+
+    @Test
+    void runClosePositionNoOpenTradeTest() {
+        // Set up close position
+        fakeBroker.withNextBar(TestSeries.nextBar(testSeries, 1.1291, 0.01));
+        fakeBroker.withClosePositionFilledTradeDetails("00001", new BigDecimal("1.1285"), Instant.now(), new BigDecimal("10"));
+        testStrategy.setExitNext(true);
+        TradingEngine engine = new TradingEngine(fakeBroker, testStrategy, "EUR_USD", testSeries);
+        engine.run();
+
+        // Confirm that no positions were closed
+        assertEquals(0, fakeBroker.closedPositions.size());
+    }
+
     // No Trade Scenario Tests
 
     @Test
     void runUnderTenAccountBalanceTest() {
-        // Confirm database wasn't updated with trade (if account bal > 10, this scenario should trade)
-        TestStrategy testStrategy = new TestStrategy();
-        BarSeries testSeries = TestSeries.flat(50, 1.1220, 0.01);
-        FakeBroker fakeBroker = new FakeBroker(TestSeries.nextBar(testSeries, 1.1420, 0.3));
+        // Confirm database wasn't updated with trade, and it wasn't placed with the broker
+        // Next bar is configured in SetUp with close price of 1.1240
         fakeBroker.withBalance(new BigDecimal("9.99"));
+
         // Verify the current bar
         assertEquals(1.1220, testSeries.getLastBar().getClosePrice().doubleValue());
 
-        TradingEngine engine = new TradingEngine(
-                fakeBroker,
-                testStrategy,
-                "EUR_USD",
-                testSeries
-        );
+        TradingEngine engine = new TradingEngine(fakeBroker, testStrategy, "EUR_USD", testSeries);
         engine.run();
 
         // Confirm the method returned before the new bar was added
@@ -120,65 +141,43 @@ public class TradingEngineTest {
 
     @Test
     void runTenAccountBalanceTest() {
-        TestStrategy testStrategy = new TestStrategy();
-        BarSeries testSeries = TestSeries.flat(50, 1.1220, 0.01);
-        FakeBroker fakeBroker = new FakeBroker(TestSeries.nextBar(testSeries, 1.1420, 0.3));
+        // Confirm that the engine proceeds with pulling the latest bar if balance >= 10
         fakeBroker.withBalance(new BigDecimal("10"));
+
         // Verify the current bar
         assertEquals(1.1220, testSeries.getLastBar().getClosePrice().doubleValue());
 
-        TradingEngine engine = new TradingEngine(
-                fakeBroker,
-                testStrategy,
-                "EUR_USD",
-                testSeries
-        );
+        TradingEngine engine = new TradingEngine(fakeBroker, testStrategy, "EUR_USD", testSeries);
         engine.run();
 
         // Confirm the new bar was added
-        assertEquals(1.1420, testSeries.getLastBar().getClosePrice().doubleValue());
+        assertEquals(1.1240, testSeries.getLastBar().getClosePrice().doubleValue());
     }
 
     // -- GetLatestBar() tests --
 
     @Test
     void updateSeriesWithLatestBarNewTest() {
-        TestStrategy testStrategy = new TestStrategy();
-        BarSeries testSeries = TestSeries.flat(50, 1.1220, 0.01);
-        FakeBroker fakeBroker = new FakeBroker(TestSeries.nextBar(testSeries, 1.1420, 0.3));
         // Verify the current bar
         assertEquals(1.1220, testSeries.getLastBar().getClosePrice().doubleValue());
 
-        TradingEngine engine = new TradingEngine(
-                fakeBroker,
-                testStrategy,
-                "EUR_USD",
-                testSeries
-        );
+        TradingEngine engine = new TradingEngine(fakeBroker, testStrategy, "EUR_USD", testSeries);
         engine.run();
 
         // Verify new bar was added
-        assertEquals(1.1420, testSeries.getLastBar().getClosePrice().doubleValue());
+        assertEquals(1.1240, testSeries.getLastBar().getClosePrice().doubleValue());
     }
 
     @Test
     void updateSeriesWithLatestBarSameTest() {
-        TestStrategy testStrategy = new TestStrategy();
-        BarSeries testSeries = TestSeries.flat(50, 1.1220, 0.01);
-        FakeBroker fakeBroker = new FakeBroker(TestSeries.sameDayBar(testSeries, 1.1420, 0.3));
         // Verify the current bar
         assertEquals(1.1220, testSeries.getLastBar().getClosePrice().doubleValue());
 
-        TradingEngine engine = new TradingEngine(
-                fakeBroker,
-                testStrategy,
-                "EUR_USD",
-                testSeries
-        );
+        TradingEngine engine = new TradingEngine(fakeBroker, testStrategy, "EUR_USD", testSeries);
         engine.run();
 
         // Verify new bar was added
-        assertEquals(1.1420, testSeries.getLastBar().getClosePrice().doubleValue());
+        assertEquals(1.1240, testSeries.getLastBar().getClosePrice().doubleValue());
     }
 
     // -- enterTrade() tests --

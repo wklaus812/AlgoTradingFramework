@@ -32,12 +32,14 @@ public class TestSeries {
         return trending(count, price, 0, range);
     }
 
+    // Returns the next day bar in the series based on the provided parameters
     public static Bar nextBar(BarSeries series, double close, double range) {
         Instant next = series.getLastBar().getEndTime().plus(Duration.ofDays(1));
         double open = series.getLastBar().getClosePrice().doubleValue();
         return bar(next, open, close, range);
     }
 
+    // Returns a same day replacement bar based on the provided parameters
     public static Bar sameDayBar(BarSeries series, double close, double range) {
         Instant same = series.getLastBar().getEndTime();
         double open = series.getLastBar().getOpenPrice().doubleValue();
