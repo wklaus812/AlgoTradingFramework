@@ -18,10 +18,12 @@ public class FakeBroker implements Broker {
     private Bar nextBar;
     private FilledTradeDetails fakeMarketOrderFillDetails = new FilledTradeDetails("00001", new BigDecimal("1"), Instant.now(), new BigDecimal("10"));
     private FilledTradeDetails fakeClosePositionFillDetails = new FilledTradeDetails("00001", new BigDecimal("1"), Instant.now(), new BigDecimal("10"));
+    private boolean rejectNextOrder = false;
 
     // Used for assertions
-    public final List<FilledTradeDetails> placedMarketOrders = new ArrayList<>();
-    public final List<FilledTradeDetails> closedPositions = new ArrayList<>();
+    public record PlacedOrder(String instrumentName, int units, OrderDetails orderDetails){}
+    public final List<PlacedOrder> placedMarketOrders = new ArrayList<>();
+    public final List<String> closedTradeIds = new ArrayList<>();
 
     public FakeBroker(Bar nextBar) {
         this.nextBar = nextBar;
@@ -41,11 +43,15 @@ public class FakeBroker implements Broker {
     }
 
     public void withClosePositionFilledTradeDetails(String tradeId, BigDecimal fillPrice, Instant fillDate, BigDecimal units) {
-        fakeMarketOrderFillDetails = new FilledTradeDetails(tradeId, fillPrice, fillDate, units);
+        fakeClosePositionFillDetails = new FilledTradeDetails(tradeId, fillPrice, fillDate, units);
     }
 
     public void withUsdConversion(BigDecimal conversionRate) {
         this.conversionRate = conversionRate;
+    }
+
+    public void setRejectNextOrder(boolean rejectNextOrder) {
+        this.rejectNextOrder = rejectNextOrder;
     }
 
     // Override methods
@@ -67,13 +73,15 @@ public class FakeBroker implements Broker {
 
     @Override
     public FilledTradeDetails placeMarketOrder(String instrument, int tradeSize, OrderDetails details) {
-        placedMarketOrders.add(fakeMarketOrderFillDetails);
+        if (rejectNextOrder) return null;
+        placedMarketOrders.add(new PlacedOrder(instrument, tradeSize, details));
         return fakeMarketOrderFillDetails;
     }
 
     @Override
     public FilledTradeDetails closePosition(String instrument, String tradeId) {
-        closedPositions.add(fakeClosePositionFillDetails);
+        if (rejectNextOrder) return null;
+        closedTradeIds.add(tradeId);
         return fakeClosePositionFillDetails;
     }
 
