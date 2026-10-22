@@ -14,7 +14,6 @@ import java.util.List;
 public class FakeBroker implements Broker {
 
     private BigDecimal balance = new BigDecimal("10000"); // Default balance is $10,000
-    private BigDecimal conversionRate = BigDecimal.ONE;
     private Bar nextBar;
     private FilledTradeDetails fakeMarketOrderFillDetails = new FilledTradeDetails("00001", new BigDecimal("1"), Instant.now(), new BigDecimal("10"));
     private FilledTradeDetails fakeClosePositionFillDetails = new FilledTradeDetails("00001", new BigDecimal("1"), Instant.now(), new BigDecimal("10"));
@@ -46,10 +45,6 @@ public class FakeBroker implements Broker {
         fakeClosePositionFillDetails = new FilledTradeDetails(tradeId, fillPrice, fillDate, units);
     }
 
-    public void withUsdConversion(BigDecimal conversionRate) {
-        this.conversionRate = conversionRate;
-    }
-
     public void setRejectNextOrder(boolean rejectNextOrder) {
         this.rejectNextOrder = rejectNextOrder;
     }
@@ -65,7 +60,7 @@ public class FakeBroker implements Broker {
         return null;
     }
     @Override public BigDecimal getClosePriceInUsd(String instrument) {
-        return conversionRate;
+        return BigDecimal.ONE;
     }
     @Override public String getBrokerName() {
         return "fake";
@@ -73,15 +68,15 @@ public class FakeBroker implements Broker {
 
     @Override
     public FilledTradeDetails placeMarketOrder(String instrument, int tradeSize, OrderDetails details) {
-        if (rejectNextOrder) return null;
         placedMarketOrders.add(new PlacedOrder(instrument, tradeSize, details));
+        if (rejectNextOrder) return null;       // Log that the order was requested, but "reject" by returning null
         return fakeMarketOrderFillDetails;
     }
 
     @Override
     public FilledTradeDetails closePosition(String instrument, String tradeId) {
-        if (rejectNextOrder) return null;
         closedTradeIds.add(tradeId);
+        if (rejectNextOrder) return null;       // Log that the order was requested, but "reject" by returning null
         return fakeClosePositionFillDetails;
     }
 

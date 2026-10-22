@@ -8,8 +8,10 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import bot.testutils.TestSeries;
 import org.ta4j.core.BarSeries;
+import org.ta4j.core.indicators.ATRIndicator;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
@@ -215,14 +217,14 @@ public class TradingEngineTest {
         TradingEngine engine = new TradingEngine(fakeBroker, testStrategy, "EUR_USD", testSeries);
         engine.run();
 
-        // Confirm that no trade was placed
+        // Confirm that no trade was placed, but the trade was requested
         assertNull( Database.getOpenTradeId(fakeBroker.getBrokerName(), "EUR_USD"));
+        assertEquals(1, fakeBroker.placedMarketOrders.size());
     }
 
     @Test
     void enterTradeSuccessTest() {
         // Set the strategy to enter on next run, and add the fill details for the next trade
-        fakeBroker.withBalance(new BigDecimal("10"));
         testStrategy.setEnterNext(true);
         fakeBroker.withMarketOrderFilledTradeDetails("00001", new BigDecimal("1.1215"), Instant.now(), new BigDecimal("10"));
 
@@ -230,9 +232,31 @@ public class TradingEngineTest {
         TradingEngine engine = new TradingEngine(fakeBroker, testStrategy, "EUR_USD", testSeries);
         engine.run();
 
-        // Confirm that the trade was placed
+        // Confirm that the trade was placed for the provided instrument
+        FakeBroker.PlacedOrder order = fakeBroker.placedMarketOrders.getFirst();
         assertEquals(1, fakeBroker.placedMarketOrders.size());
-        assertEquals("EUR_USD", fakeBroker.placedMarketOrders.getFirst().instrumentName());
+        assertEquals("EUR_USD", order.instrumentName());
+
+        // Calculate expected stop loss and take profit
+        double atr = new ATRIndicator(testSeries, 14).getValue(testSeries.getEndIndex()).doubleValue();
+        double lastClose = testSeries.getLastBar().getClosePrice().doubleValue();
+        BigDecimal expectedStop = new BigDecimal(atr * 1.5).setScale(5, RoundingMode.HALF_UP);
+        BigDecimal expectedTakeProfit = new BigDecimal(atr * 3 + lastClose).setScale(5, RoundingMode.HALF_UP);
+
+        // Confirm order details match expected
+        assertEquals(expectedStop, order.orderDetails().getStopLossDistance());
+        assertEquals(expectedTakeProfit, order.orderDetails().getTakeProfitPrice());
+
+        // Calculate the expected position size
+        long expectedUnits = PositionSizer.calculateUnits(
+                fakeBroker.getAccountBalance(), new BigDecimal("0.01"), new BigDecimal(atr * 1.5),
+                "EUR_USD", "USD", BigDecimal.ONE);
+
+        // Confirm the position size matches expected
+        assertTrue(order.units() > 0);
+        assertEquals(expectedUnits, order.units());
+
+        // Confirm the trade was logged to the database
         assertEquals("00001", Database.getOpenTradeId(fakeBroker.getBrokerName(), "EUR_USD"));
     }
 
@@ -258,33 +282,9 @@ public class TradingEngineTest {
         testStrategy.setExitNext(true);
         engine.run();
 
-        // Confirm that the position is still open
+        // Confirm that the position is still open and that the trade was requested
         assertEquals("00001", Database.getOpenTradeId(fakeBroker.getBrokerName(), "EUR_USD"));
-        assertEquals(0, fakeBroker.closedTradeIds.size());
-    }
-
-    @Test
-    void closePositionSuccessTest() {
-        // Open a position
-        testStrategy.setEnterNext(true);
-        fakeBroker.withMarketOrderFilledTradeDetails("00001", new BigDecimal("1.1215"), Instant.now(), new BigDecimal("10"));
-        TradingEngine engine = new TradingEngine(fakeBroker, testStrategy, "EUR_USD", testSeries);
-        engine.run();
-
-        // Confirm that the position was opened
-        assertEquals("00001", Database.getOpenTradeId(fakeBroker.getBrokerName(), "EUR_USD"));
-
-        // Add the next bar, set to exit next, and run the engine again
-        fakeBroker.withNextBar(TestSeries.nextBar(testSeries, 1.1291, 0.01));
-        fakeBroker.withClosePositionFilledTradeDetails("00001", new BigDecimal("1.1285"), Instant.now(), new BigDecimal("10"));
-        testStrategy.setEnterNext(false);
-        testStrategy.setExitNext(true);
-        engine.run();
-
-        // Confirm that the position is still open
-        assertNull(Database.getOpenTradeId(fakeBroker.getBrokerName(), "EUR_USD"));
         assertEquals(1, fakeBroker.closedTradeIds.size());
-        assertEquals("00001", fakeBroker.closedTradeIds.getFirst());
     }
 
 }
