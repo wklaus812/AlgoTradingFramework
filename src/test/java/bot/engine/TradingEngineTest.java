@@ -244,6 +244,7 @@ public class TradingEngineTest {
         BigDecimal expectedTakeProfit = new BigDecimal(atr * 3 + lastClose).setScale(5, RoundingMode.HALF_UP);
 
         // Confirm order details match expected
+        assertTrue(order.orderDetails().getIsTrailingStopLoss());
         assertEquals(expectedStop, order.orderDetails().getStopLossDistance());
         assertEquals(expectedTakeProfit, order.orderDetails().getTakeProfitPrice());
 
