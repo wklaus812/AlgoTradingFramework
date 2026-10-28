@@ -285,12 +285,13 @@ public class OandaBroker implements Broker{
         LocalTime localTime = LocalTime.of(hour,minute,second);
         // Build LocalDateTime
         LocalDateTime localDateTime = LocalDateTime.of(localDate, localTime);
-        // Build OffsetDateTime
-        OffsetDateTime offsetDateTime = OffsetDateTime.of(localDateTime, ZoneOffset.of("-05:00"));
+        // Build OffsetDateTime for Chicago
+        ZoneId chicagoZone = ZoneId.of("America/Chicago");
+        ZonedDateTime chicagoTime = localDateTime.atZone(ZoneOffset.UTC).withZoneSameInstant(chicagoZone);
         // Build ZonedDateTime and return
-        return ZonedDateTime.of(offsetDateTime.getYear(), offsetDateTime.getMonthValue(),
-                offsetDateTime.getDayOfMonth(), offsetDateTime.getHour(), offsetDateTime.getMinute(),
-                offsetDateTime.getSecond(), offsetDateTime.getNano(), ZoneId.of("America/Chicago"));
+        return ZonedDateTime.of(chicagoTime.getYear(), chicagoTime.getMonthValue(),
+                chicagoTime.getDayOfMonth(), chicagoTime.getHour(), chicagoTime.getMinute(),
+                chicagoTime.getSecond(), chicagoTime.getNano(), chicagoZone);
     }
 
     @Override
