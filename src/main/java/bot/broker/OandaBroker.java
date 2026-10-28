@@ -137,7 +137,6 @@ public class OandaBroker implements Broker{
         TakeProfitDetails takeProfitDetails = getTakeProfitDetails(details);
 
         // Place market order
-        TransactionID txnId;
         try {
             OrderCreateRequest request = new OrderCreateRequest(accountId);
 
@@ -212,14 +211,12 @@ public class OandaBroker implements Broker{
 
             if (trade == null) return null; // Trade wasn't closed
 
-            FilledTradeDetails fillDetails = new FilledTradeDetails(
+            return new FilledTradeDetails(
                     trade.getTradeID().toString(),
                     trade.getPrice().bigDecimalValue(),
                     Instant.parse(closeResponse.getOrderFillTransaction().getTime()),
                     trade.getUnits().bigDecimalValue()
             );
-
-            return fillDetails;
         } catch (RequestException | ExecuteException e) {
             throw new BrokerException("Unable to close position for " + instrument, e);
         }
@@ -253,11 +250,12 @@ public class OandaBroker implements Broker{
             // Check for the configured account
             boolean hasaccount = false;
             for (AccountProperties account : accountProperties) {
-                if (account.getId().equals(accountId))
+                if (account.getId().equals(accountId)) {
                     hasaccount = true;
+                    break;
+                }
             }
-            if (!hasaccount)
-                throw new BrokerException("Account " + accountId + " not found");
+            if (!hasaccount) throw new BrokerException("Account " + accountId + " not found");
         } catch (RequestException | ExecuteException e) {
             throw new BrokerException("Unable to find Oanda Account", e);
         }
@@ -270,8 +268,7 @@ public class OandaBroker implements Broker{
             Account account;
             account = response.getAccount();
             // Check the balance
-            if (account.getBalance().doubleValue() <= 0.0)
-                throw new BrokerException("Account "+accountId+" balance "+account.getBalance()+" <= 0");
+            if (account.getBalance().doubleValue() <= 0.0) throw new BrokerException("Account "+accountId+" balance "+account.getBalance()+" <= 0");
         } catch (RequestException | ExecuteException e) {
             throw new BrokerException("Unable to find Oanda Account", e);
         }
@@ -294,11 +291,8 @@ public class OandaBroker implements Broker{
         LocalDateTime localDateTime = LocalDateTime.of(localDate, localTime);
         // Build OffsetDateTime for Chicago
         ZoneId chicagoZone = ZoneId.of("America/Chicago");
-        ZonedDateTime chicagoTime = localDateTime.atZone(ZoneOffset.UTC).withZoneSameInstant(chicagoZone);
         // Build ZonedDateTime and return
-        return ZonedDateTime.of(chicagoTime.getYear(), chicagoTime.getMonthValue(),
-                chicagoTime.getDayOfMonth(), chicagoTime.getHour(), chicagoTime.getMinute(),
-                chicagoTime.getSecond(), chicagoTime.getNano(), chicagoZone);
+        return localDateTime.atZone(ZoneOffset.UTC).withZoneSameInstant(chicagoZone);
     }
 
     @Override

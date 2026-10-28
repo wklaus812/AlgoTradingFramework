@@ -7,12 +7,79 @@ import org.junit.jupiter.api.Test;
 
 public class OandaBrokerTest {
 
-//    @Test
-//    void exampleTest() {
-//        OandaBroker b = new OandaBroker(new Context("example.com","test"), new AccountID("test"));
-//        System.out.println(b.getAccountBalance());
-//
-//    }
 
+    // getHistoricalBarSeries tests
+    @Test
+    void getHistoricalBarSeriesTest() {
 
+    }
+
+    @Test
+    void getHistoricalBarSeriesExceptionTest() {
+
+    }
+
+    // getLatestBar tests
+    @Test
+    void getLatestBarTest() {
+
+    }
+
+    @Test
+    void getLatestBarExceptionTest() {
+
+    }
+
+    // placeMarketOrder tests
+    @Test
+    void placeMarketOrderTest() {
+
+    }
+
+    @Test
+    void placeMarketOrderTakeProfitTest() {
+
+    }
+
+    @Test
+    void placeMarketOrderStopLossTest() {
+
+    }
+
+    @Test
+    void placeMarketOrderTrailingStopLossTest() {
+
+    }
+
+    @Test
+    void placeMarketOrderExceptionTest() {
+
+    }
+
+    // closePosition tests
+    @Test
+    void closePositionTest() {
+
+    }
+
+    @Test
+    void closePositionNotClosedTest() {
+
+    }
+
+    @Test
+    void closePositionExceptionTest() {
+
+    }
+
+    // getOandaEndTime tests
+    @Test
+    void getOandaEndTimeStandardTimeTest() {
+
+    }
+
+    @Test
+    void getOandaEndTimeDaylightTimeTest() {
+
+    }
 }
