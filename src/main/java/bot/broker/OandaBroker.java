@@ -36,6 +36,10 @@ public class OandaBroker implements Broker{
 
     public OandaBroker() {}
 
+    public OandaBroker(Context ctx) {
+        //this.ctx = ctx;
+    }
+
     @Override
     public BigDecimal getAccountBalance() {
         BigDecimal accountBalance;
