@@ -32,12 +32,17 @@ import java.util.List;
 
 public class OandaBroker implements Broker{
 
-    private final Context ctx = new ContextBuilder(Config.URL).setToken(Config.TOKEN).setApplication("OandaBroker").build();
+    private final Context ctx;
+    private final AccountID accountId;
 
-    public OandaBroker() {}
+    public OandaBroker() {
+        ctx = new ContextBuilder(Config.URL).setToken(Config.TOKEN).setApplication("OandaBroker").build();
+        accountId = new AccountID(Config.ACCOUNT_ID);
+    }
 
-    public OandaBroker(Context ctx) {
-        //this.ctx = ctx;
+    public OandaBroker(Context ctx, AccountID accountId) {
+        this.ctx = ctx;
+        this.accountId = accountId;
     }
 
     @Override
@@ -45,7 +50,7 @@ public class OandaBroker implements Broker{
         BigDecimal accountBalance;
 
         try {
-            AccountGetResponse acc = ctx.account.get(Config.ACCOUNT_ID);
+            AccountGetResponse acc = ctx.account.get(accountId);
             accountBalance = acc.getAccount().getBalance().bigDecimalValue();
         } catch (RequestException | ExecuteException e) {
             throw new BrokerException("Unable to retrieve Account Balance", e);
@@ -124,7 +129,6 @@ public class OandaBroker implements Broker{
     // Returns the TradeId as a String
     @Override
     public FilledTradeDetails placeMarketOrder(String instrument, int tradeSize, OrderDetails details) {
-        AccountID accountId = Config.ACCOUNT_ID;
         validateAccount(accountId);
 
         // Build stop loss and take profit details if necessary
@@ -199,7 +203,6 @@ public class OandaBroker implements Broker{
     // Closes a position with the given trade id and instrument
     @Override
     public FilledTradeDetails closePosition(String instrument, String tradeId) {
-        AccountID accountId = Config.ACCOUNT_ID;
         validateAccount(accountId);
 
         try {
@@ -227,7 +230,7 @@ public class OandaBroker implements Broker{
     public BigDecimal getClosePriceInUsd(String instrument) {
         ArrayList<String> instruments = new ArrayList<>();
         instruments.add(instrument);
-        PricingGetRequest req = new PricingGetRequest(Config.ACCOUNT_ID, instruments);
+        PricingGetRequest req = new PricingGetRequest(accountId, instruments);
 
         try {
             PricingGetResponse resp = ctx.pricing.get(req);
