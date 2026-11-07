@@ -35,6 +35,9 @@ public class OandaBroker implements Broker{
     private final Context ctx;
     private final AccountID accountId;
 
+    OrderCreateRequest orderCreateRequest;
+    MarketOrderRequest marketOrderRequest;
+
     public OandaBroker() {
         ctx = new ContextBuilder(Config.URL).setToken(Config.TOKEN).setApplication("OandaBroker").build();
         accountId = new AccountID(Config.ACCOUNT_ID);
@@ -138,9 +141,9 @@ public class OandaBroker implements Broker{
 
         // Place market order
         try {
-            OrderCreateRequest request = new OrderCreateRequest(accountId);
+            orderCreateRequest = new OrderCreateRequest(accountId);
 
-            MarketOrderRequest marketOrderRequest = new MarketOrderRequest();
+            marketOrderRequest = new MarketOrderRequest();
             marketOrderRequest.setInstrument(instrument);
             marketOrderRequest.setUnits(tradeSize);
             // Set stop loss if specified
@@ -151,13 +154,15 @@ public class OandaBroker implements Broker{
             }
             // Set take profit if specified
             if (takeProfitDetails != null) marketOrderRequest.setTakeProfitOnFill(takeProfitDetails);
-            request.setOrder(marketOrderRequest);
+            orderCreateRequest.setOrder(marketOrderRequest);
 
-            OrderCreateResponse response = ctx.order.create(request);
+            // Place trade
+            OrderCreateResponse response = ctx.order.create(orderCreateRequest);
+            if (response.getOrderFillTransaction() == null || response.getOrderFillTransaction().getTradeOpened() == null) {
+                // Log in SL4J
+                return null; // Trade wasn't filled
+            }
             OrderFillTransaction transaction = response.getOrderFillTransaction();
-
-            // Check if filled
-            if (transaction.getTradeOpened() == null) {return null;}
 
             return new FilledTradeDetails(
                     transaction.getTradeOpened().getTradeID().toString(),
@@ -172,8 +177,8 @@ public class OandaBroker implements Broker{
 
     // Builds Oanda stop loss details, based on provided distance
     private StopLossDetails getStopLossDetails(OrderDetails details) {
-        // Return null if trailing stop loss is specified
-        if (details.getIsTrailingStopLoss()) return null;
+        // Return null if no stop loss or trailing stop loss is specified
+        if (details.getStopLossDistance() == null || details.getIsTrailingStopLoss() ) return null;
 
         StopLossDetails stopLossDetails = new StopLossDetails();
         stopLossDetails.setDistance(details.getStopLossDistance());
@@ -182,8 +187,8 @@ public class OandaBroker implements Broker{
 
     // Builds Oanda trailing stop loss details, based on provided distance
     private TrailingStopLossDetails getTrailingStopLossDetails(OrderDetails details) {
-        // Return null if normal stop loss is specified
-        if (!details.getIsTrailingStopLoss()) return null;
+        // Return null if  no stop loss or normal stop loss is specified
+        if (details.getStopLossDistance() == null || !details.getIsTrailingStopLoss()) return null;
 
         TrailingStopLossDetails trailingStopLossDetails = new TrailingStopLossDetails();
         trailingStopLossDetails.setDistance(details.getStopLossDistance());
@@ -205,11 +210,15 @@ public class OandaBroker implements Broker{
         validateAccount(accountId);
 
         try {
-            TradeCloseResponse closeResponse = ctx.trade.close(new TradeCloseRequest(accountId, new TradeSpecifier(tradeId)));
             // This method will always close just one trade
+            TradeCloseResponse closeResponse = ctx.trade.close(new TradeCloseRequest(accountId, new TradeSpecifier(tradeId)));
+            if (closeResponse == null || closeResponse.getOrderFillTransaction() == null
+                    || closeResponse.getOrderFillTransaction().getTradesClosed() == null
+                    || closeResponse.getOrderFillTransaction().getTradesClosed().getFirst() == null) {
+                // Log in SL4J
+                return null; // Trade wasn't closed
+            }
             TradeReduce trade = closeResponse.getOrderFillTransaction().getTradesClosed().getFirst();
-
-            if (trade == null) return null; // Trade wasn't closed
 
             return new FilledTradeDetails(
                     trade.getTradeID().toString(),
@@ -240,42 +249,23 @@ public class OandaBroker implements Broker{
 
     // Helper method used for placing trades. Ensures the account exists and has a non-zero balance.
     private void validateAccount(AccountID accountId) {
-        // Ensure account exists
-        try {
-            // Execute the request and obtain a response object
-            AccountListResponse response = ctx.account.list();
-            // Retrieve account list from response object
-            List<AccountProperties> accountProperties;
-            accountProperties = response.getAccounts();
-            // Check for the configured account
-            boolean hasaccount = false;
-            for (AccountProperties account : accountProperties) {
-                if (account.getId().equals(accountId)) {
-                    hasaccount = true;
-                    break;
-                }
-            }
-            if (!hasaccount) throw new BrokerException("Account " + accountId + " not found");
-        } catch (RequestException | ExecuteException e) {
-            throw new BrokerException("Unable to find Oanda Account", e);
-        }
-
-        // Ensure account has non-zero balance
+        // Ensure account exists and  has non-zero balance
         try {
             // Execute the request and retrieve a response object
             AccountGetResponse response = ctx.account.get(accountId);
+            if (response == null || response.getAccount() == null) throw new BrokerException("Account not found in current broker context");
+
             // Retrieve the contents of the result
-            Account account;
-            account = response.getAccount();
+            Account account = response.getAccount();
             // Check the balance
-            if (account.getBalance().doubleValue() <= 0.0) throw new BrokerException("Account "+accountId+" balance "+account.getBalance()+" <= 0");
+            if (account.getBalance().doubleValue() <= 0.0) throw new BrokerException("Account balance <= 0");
         } catch (RequestException | ExecuteException e) {
-            throw new BrokerException("Unable to find Oanda Account", e);
+            throw new BrokerException("Error retrieving account from Oanda", e);
         }
     }
 
     // Helper method that parses the time returned from Oanda for a given candle/bar
-    private ZonedDateTime getOandaEndTime(Candlestick candle) {
+    ZonedDateTime getOandaEndTime(Candlestick candle) {
         String dateTimeString = candle.getTime().toString();
         // Build LocalDate
         int year = Integer.parseInt(dateTimeString.substring(0,4));
