@@ -4,21 +4,21 @@ import com.oanda.v20.instrument.Candlestick;
 import com.oanda.v20.instrument.CandlestickData;
 
 import java.io.*;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
 
 public class CandlestickLoader {
 
     public static List<Candlestick> loadCandlesticksFromCSV(String filePath) {
         try (InputStream inputStream = CandlestickLoader.class.getResourceAsStream(filePath)) {
             List<Candlestick> candlesticks = new ArrayList<>();
-            if (inputStream != null) {
-                java.io.BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    candlesticks.add(getCandlestick(line));
-                }
+            if (inputStream == null) throw new IllegalArgumentException();
+
+            java.io.BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream, StandardCharsets.UTF_8));
+            String line;
+            while ((line = reader.readLine()) != null) {
+                candlesticks.add(getCandlestick(line));
             }
             return candlesticks;
         } catch (IOException e) {

@@ -7,30 +7,22 @@ import com.oanda.v20.RequestException;
 import com.oanda.v20.account.*;
 import com.oanda.v20.instrument.*;
 import com.oanda.v20.order.*;
-import com.oanda.v20.pricing_common.PriceValue;
 import com.oanda.v20.primitives.AccountUnits;
-import com.oanda.v20.primitives.DateTime;
-import com.oanda.v20.primitives.DecimalNumber;
 import com.oanda.v20.trade.TradeCloseRequest;
 import com.oanda.v20.trade.TradeCloseResponse;
 import com.oanda.v20.trade.TradeContext;
-import com.oanda.v20.trade.TradeID;
 import com.oanda.v20.transaction.OrderFillTransaction;
 import com.oanda.v20.transaction.TradeOpen;
 import com.oanda.v20.transaction.TradeReduce;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
-import org.mockito.Captor;
 import org.mockito.Mock;
-import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.ta4j.core.BarSeries;
 import org.ta4j.core.BaseBar;
 
 import java.math.BigDecimal;
 import java.time.ZonedDateTime;
-import java.util.ArrayList;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -54,10 +46,6 @@ public class OandaBrokerTest {
 
     @Mock TradeContext mockTradeContext;
     @Mock TradeCloseResponse mockTradeCloseResponse;
-
-    @Spy OrderFillTransaction mockOrderFillTransaction;
-    @Spy TradeOpen mockTradeOpen;
-    @Spy TradeReduce mockTradeReduce;
 
     // getHistoricalBarSeries tests
     @Test
@@ -146,73 +134,11 @@ public class OandaBrokerTest {
         OrderDetails orderDetails = new OrderDetails();
         FilledTradeDetails filledTradeDetails = testBroker.placeMarketOrder("EUR_USD", 10, orderDetails);
 
-        // Verify Market Order Request
-        MarketOrderRequest marketOrderRequest = testBroker.marketOrderRequest;
-        assertEquals("EUR_USD", marketOrderRequest.getInstrument().toString());
-        assertEquals(10, marketOrderRequest.getUnits().doubleValue());
-
         // Verify the trade details
         assertEquals("00001", filledTradeDetails.getTradeId());
         assertEquals(1.11826, filledTradeDetails.getFillPrice().doubleValue());
         assertEquals("2026-11-02T23:00:00Z", filledTradeDetails.getFillDate().toString());
         assertEquals(10, filledTradeDetails.getUnits().doubleValue());
-    }
-
-    @Test
-    void placeMarketOrderTakeProfitTest() throws ExecuteException, RequestException {
-        // Setup stubs for validating account and placing the order
-        mockValidateAccount(10000.0);
-        mockPlaceOrder("00001", 1.11826, "2026-11-02T23:00:00Z", 10, true);
-
-        // Create broker and place order
-        OandaBroker testBroker = new OandaBroker(mockCtx, mockAccountId);
-        OrderDetails orderDetails = new OrderDetails();
-        orderDetails.setTakeProfitPrice(new BigDecimal("1.11926"));
-        testBroker.placeMarketOrder("EUR_USD", 10, orderDetails);
-
-        // Verify Market Order Request
-        MarketOrderRequest marketOrderRequest = testBroker.marketOrderRequest;
-        assertEquals("EUR_USD", marketOrderRequest.getInstrument().toString());
-        assertEquals(10, marketOrderRequest.getUnits().doubleValue());
-        assertEquals(1.11926, marketOrderRequest.getTakeProfitOnFill().getPrice().doubleValue());
-    }
-
-    @Test
-    void placeMarketOrderStopLossTest() throws ExecuteException, RequestException {
-        // Setup stubs for validating account and placing the order
-        mockValidateAccount(10000.0);
-        mockPlaceOrder("00001", 1.11826, "2026-11-02T23:00:00Z", 10, true);
-
-        // Create broker and place order
-        OandaBroker testBroker = new OandaBroker(mockCtx, mockAccountId);
-        OrderDetails orderDetails = new OrderDetails();
-        orderDetails.setStopLoss(new BigDecimal("0.001"), false);
-        testBroker.placeMarketOrder("EUR_USD", 10, orderDetails);
-
-        // Verify Market Order Request
-        MarketOrderRequest marketOrderRequest = testBroker.marketOrderRequest;
-        assertEquals("EUR_USD", marketOrderRequest.getInstrument().toString());
-        assertEquals(10, marketOrderRequest.getUnits().doubleValue());
-        assertEquals(0.001, marketOrderRequest.getStopLossOnFill().getDistance().doubleValue());
-    }
-
-    @Test
-    void placeMarketOrderTrailingStopLossTest() throws ExecuteException, RequestException {
-        // Setup stubs for validating account and placing the order
-        mockValidateAccount(10000.0);
-        mockPlaceOrder("00001", 1.11826, "2026-11-02T23:00:00Z", 10, true);
-
-        // Create broker and place order
-        OandaBroker testBroker = new OandaBroker(mockCtx, mockAccountId);
-        OrderDetails orderDetails = new OrderDetails();
-        orderDetails.setStopLoss(new BigDecimal("0.001"), true);
-        testBroker.placeMarketOrder("EUR_USD", 10, orderDetails);
-
-        // Verify Market Order Request
-        MarketOrderRequest marketOrderRequest = testBroker.marketOrderRequest;
-        assertEquals("EUR_USD", marketOrderRequest.getInstrument().toString());
-        assertEquals(10, marketOrderRequest.getUnits().doubleValue());
-        assertEquals(0.001, marketOrderRequest.getTrailingStopLossOnFill().getDistance().doubleValue());
     }
 
     @Test
@@ -244,6 +170,55 @@ public class OandaBrokerTest {
         BrokerException brokerException = assertThrows(BrokerException.class,
                 () -> testBroker.placeMarketOrder("EUR_USD", 10, orderDetails));
         assertEquals("Unable to place market order for EUR_USD", brokerException.getMessage());
+    }
+
+    @Test
+    void getMarketOrderRequestTakeProfitTest() {
+        // Create broker and order details
+        OandaBroker testBroker = new OandaBroker(mockCtx, mockAccountId);
+        OrderDetails orderDetails = new OrderDetails();
+        orderDetails.setTakeProfitPrice(new BigDecimal("1.11926"));
+
+        // Verify Market Order Request
+        MarketOrderRequest marketOrderRequest = testBroker.getMarketOrderRequest("EUR_USD", 10, orderDetails);
+        assertEquals("EUR_USD", marketOrderRequest.getInstrument().toString());
+        assertEquals(10, marketOrderRequest.getUnits().doubleValue());
+        assertEquals(1.11926, marketOrderRequest.getTakeProfitOnFill().getPrice().doubleValue());
+        assertNull(marketOrderRequest.getStopLossOnFill());
+        assertNull(marketOrderRequest.getTrailingStopLossOnFill());
+    }
+
+    @Test
+    void getMarketOrderRequestStopLossTest() {
+        // Create broker and order details
+        OandaBroker testBroker = new OandaBroker(mockCtx, mockAccountId);
+        OrderDetails orderDetails = new OrderDetails();
+        orderDetails.setStopLoss(new BigDecimal("0.001"), false);
+
+        // Verify Market Order Request
+        MarketOrderRequest marketOrderRequest = testBroker.getMarketOrderRequest("EUR_USD", 10, orderDetails);
+        assertEquals("EUR_USD", marketOrderRequest.getInstrument().toString());
+        assertEquals(10, marketOrderRequest.getUnits().doubleValue());
+        assertEquals(0.001, marketOrderRequest.getStopLossOnFill().getDistance().doubleValue());
+        assertNull(marketOrderRequest.getTakeProfitOnFill());
+        assertNull(marketOrderRequest.getTrailingStopLossOnFill());
+
+    }
+
+    @Test
+    void getMarketOrderRequestTrailingStopLossTest() {
+        // Create broker and place order
+        OandaBroker testBroker = new OandaBroker(mockCtx, mockAccountId);
+        OrderDetails orderDetails = new OrderDetails();
+        orderDetails.setStopLoss(new BigDecimal("0.001"), true);
+
+        // Verify Market Order Request
+        MarketOrderRequest marketOrderRequest = testBroker.getMarketOrderRequest("EUR_USD", 10, orderDetails);
+        assertEquals("EUR_USD", marketOrderRequest.getInstrument().toString());
+        assertEquals(10, marketOrderRequest.getUnits().doubleValue());
+        assertEquals(0.001, marketOrderRequest.getTrailingStopLossOnFill().getDistance().doubleValue());
+        assertNull(marketOrderRequest.getTakeProfitOnFill());
+        assertNull(marketOrderRequest.getStopLossOnFill());
     }
 
     // closePosition tests
@@ -411,38 +386,40 @@ public class OandaBrokerTest {
     }
 
     private void mockPlaceOrder(String tradeId, double price, String openTime, double units, boolean tradeOpened) throws ExecuteException, RequestException {
-        // Mock place order
         mockCtx.order = mockOrderContext;
-        when(mockCtx.order.create(any(OrderCreateRequest.class))).thenReturn(mockOrderCreateResponse);
-        when(mockOrderCreateResponse.getOrderFillTransaction()).thenReturn(mockOrderFillTransaction);
+        OrderFillTransaction orderFillTransaction = new OrderFillTransaction();
+        TradeOpen tradeOpen = new TradeOpen();
+
+        tradeOpen.setTradeID(tradeId);
+        tradeOpen.setPrice(price);
+        tradeOpen.setUnits(units);
+        orderFillTransaction.setTime(openTime);
+        orderFillTransaction.setTradeOpened(tradeOpen);
 
         if (!tradeOpened) {
-            when(mockOrderFillTransaction.getTradeOpened()).thenReturn(null);
-            return;
+            orderFillTransaction.setTradeOpened(null);
         }
 
-        mockTradeOpen.setTradeID(tradeId);
-        mockTradeOpen.setPrice(price);
-        mockOrderFillTransaction.setTime(openTime);
-        mockTradeOpen.setUnits(units);
-
-        when(mockOrderFillTransaction.getTradeOpened()).thenReturn(mockTradeOpen);
+        when(mockCtx.order.create(any(OrderCreateRequest.class))).thenReturn(mockOrderCreateResponse);
+        when(mockOrderCreateResponse.getOrderFillTransaction()).thenReturn(orderFillTransaction);
     }
 
     private void mockClosePosition(String tradeId, double closePrice, String closeTime, double units, boolean tradeClosed) throws ExecuteException, RequestException {
         mockCtx.trade = mockTradeContext;
-        when(mockCtx.trade.close(any(TradeCloseRequest.class))).thenReturn(mockTradeCloseResponse);
-        when(mockTradeCloseResponse.getOrderFillTransaction()).thenReturn(mockOrderFillTransaction);
+        OrderFillTransaction orderFillTransaction = new OrderFillTransaction();
+        TradeReduce tradeReduce = new TradeReduce();
+
+        tradeReduce.setTradeID(tradeId);
+        tradeReduce.setPrice(closePrice);
+        tradeReduce.setUnits(units);
+        orderFillTransaction.setTime(closeTime);
+        orderFillTransaction.setTradeReduced(tradeReduce);
 
         if (!tradeClosed) {
-            when(mockOrderFillTransaction.getTradesClosed()).thenReturn(null);
-            return;
+            orderFillTransaction.setTradeReduced(null);
         }
-        mockTradeReduce.setTradeID(tradeId);
-        mockTradeReduce.setPrice(closePrice);
-        mockOrderFillTransaction.setTime(closeTime);
-        mockTradeReduce.setUnits(units);
 
-        when(mockOrderFillTransaction.getTradesClosed()).thenReturn(new ArrayList<>(List.of(mockTradeReduce)));
+        when(mockCtx.trade.close(any(TradeCloseRequest.class))).thenReturn(mockTradeCloseResponse);
+        when(mockTradeCloseResponse.getOrderFillTransaction()).thenReturn(orderFillTransaction);
     }
 }

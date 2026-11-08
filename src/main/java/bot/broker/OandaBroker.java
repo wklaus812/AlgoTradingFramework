@@ -28,15 +28,11 @@ import bot.Config;
 import java.math.BigDecimal;
 import java.time.*;
 import java.util.ArrayList;
-import java.util.List;
 
 public class OandaBroker implements Broker{
 
     private final Context ctx;
     private final AccountID accountId;
-
-    OrderCreateRequest orderCreateRequest;
-    MarketOrderRequest marketOrderRequest;
 
     public OandaBroker() {
         ctx = new ContextBuilder(Config.URL).setToken(Config.TOKEN).setApplication("OandaBroker").build();
@@ -134,26 +130,11 @@ public class OandaBroker implements Broker{
     public FilledTradeDetails placeMarketOrder(String instrument, int tradeSize, OrderDetails details) {
         validateAccount(accountId);
 
-        // Build stop loss and take profit details if necessary
-        StopLossDetails stopLossDetails = getStopLossDetails(details);
-        TrailingStopLossDetails trailingStopLossDetails = getTrailingStopLossDetails(details);
-        TakeProfitDetails takeProfitDetails = getTakeProfitDetails(details);
-
         // Place market order
         try {
-            orderCreateRequest = new OrderCreateRequest(accountId);
+            OrderCreateRequest orderCreateRequest = new OrderCreateRequest(accountId);
 
-            marketOrderRequest = new MarketOrderRequest();
-            marketOrderRequest.setInstrument(instrument);
-            marketOrderRequest.setUnits(tradeSize);
-            // Set stop loss if specified
-            if (stopLossDetails != null) {
-                marketOrderRequest.setStopLossOnFill(stopLossDetails);
-            } else if (trailingStopLossDetails != null) {
-                marketOrderRequest.setTrailingStopLossOnFill(trailingStopLossDetails);
-            }
-            // Set take profit if specified
-            if (takeProfitDetails != null) marketOrderRequest.setTakeProfitOnFill(takeProfitDetails);
+            MarketOrderRequest marketOrderRequest = getMarketOrderRequest(instrument, tradeSize, details);
             orderCreateRequest.setOrder(marketOrderRequest);
 
             // Place trade
@@ -173,6 +154,26 @@ public class OandaBroker implements Broker{
         } catch (RequestException | ExecuteException e) {
             throw new BrokerException("Unable to place market order for " + instrument, e);
         }
+    }
+
+    MarketOrderRequest getMarketOrderRequest(String instrument, int tradeSize, OrderDetails details) {
+        // Build stop loss and take profit details if necessary
+        StopLossDetails stopLossDetails = getStopLossDetails(details);
+        TrailingStopLossDetails trailingStopLossDetails = getTrailingStopLossDetails(details);
+        TakeProfitDetails takeProfitDetails = getTakeProfitDetails(details);
+
+        MarketOrderRequest marketOrderRequest = new MarketOrderRequest();
+        marketOrderRequest.setInstrument(instrument);
+        marketOrderRequest.setUnits(tradeSize);
+        // Set stop loss if specified
+        if (stopLossDetails != null) {
+            marketOrderRequest.setStopLossOnFill(stopLossDetails);
+        } else if (trailingStopLossDetails != null) {
+            marketOrderRequest.setTrailingStopLossOnFill(trailingStopLossDetails);
+        }
+        // Set take profit if specified
+        if (takeProfitDetails != null) marketOrderRequest.setTakeProfitOnFill(takeProfitDetails);
+        return marketOrderRequest;
     }
 
     // Builds Oanda stop loss details, based on provided distance
@@ -210,15 +211,13 @@ public class OandaBroker implements Broker{
         validateAccount(accountId);
 
         try {
-            // This method will always close just one trade
             TradeCloseResponse closeResponse = ctx.trade.close(new TradeCloseRequest(accountId, new TradeSpecifier(tradeId)));
             if (closeResponse == null || closeResponse.getOrderFillTransaction() == null
-                    || closeResponse.getOrderFillTransaction().getTradesClosed() == null
-                    || closeResponse.getOrderFillTransaction().getTradesClosed().getFirst() == null) {
+                    || closeResponse.getOrderFillTransaction().getTradeReduced() == null) {
                 // Log in SL4J
                 return null; // Trade wasn't closed
             }
-            TradeReduce trade = closeResponse.getOrderFillTransaction().getTradesClosed().getFirst();
+            TradeReduce trade = closeResponse.getOrderFillTransaction().getTradeReduced();
 
             return new FilledTradeDetails(
                     trade.getTradeID().toString(),
