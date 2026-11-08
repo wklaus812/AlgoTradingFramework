@@ -13,7 +13,7 @@ public class CandlestickLoader {
     public static List<Candlestick> loadCandlesticksFromCSV(String filePath) {
         try (InputStream inputStream = CandlestickLoader.class.getResourceAsStream(filePath)) {
             List<Candlestick> candlesticks = new ArrayList<>();
-            if (inputStream == null) throw new IllegalArgumentException();
+            if (inputStream == null) throw new IllegalArgumentException("Candlestick CSV not found on classpath: " + filePath);
 
             java.io.BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream, StandardCharsets.UTF_8));
             String line;

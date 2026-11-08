@@ -213,11 +213,12 @@ public class OandaBroker implements Broker{
         try {
             TradeCloseResponse closeResponse = ctx.trade.close(new TradeCloseRequest(accountId, new TradeSpecifier(tradeId)));
             if (closeResponse == null || closeResponse.getOrderFillTransaction() == null
-                    || closeResponse.getOrderFillTransaction().getTradeReduced() == null) {
+                    || closeResponse.getOrderFillTransaction().getTradesClosed() == null
+                    || closeResponse.getOrderFillTransaction().getTradesClosed().getFirst() == null) {
                 // Log in SL4J
                 return null; // Trade wasn't closed
             }
-            TradeReduce trade = closeResponse.getOrderFillTransaction().getTradeReduced();
+            TradeReduce trade = closeResponse.getOrderFillTransaction().getTradesClosed().getFirst();
 
             return new FilledTradeDetails(
                     trade.getTradeID().toString(),

@@ -23,6 +23,7 @@ import org.ta4j.core.BaseBar;
 
 import java.math.BigDecimal;
 import java.time.ZonedDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -394,10 +395,9 @@ public class OandaBrokerTest {
         tradeOpen.setPrice(price);
         tradeOpen.setUnits(units);
         orderFillTransaction.setTime(openTime);
-        orderFillTransaction.setTradeOpened(tradeOpen);
 
-        if (!tradeOpened) {
-            orderFillTransaction.setTradeOpened(null);
+        if (tradeOpened) {
+            orderFillTransaction.setTradeOpened(tradeOpen);
         }
 
         when(mockCtx.order.create(any(OrderCreateRequest.class))).thenReturn(mockOrderCreateResponse);
@@ -413,10 +413,9 @@ public class OandaBrokerTest {
         tradeReduce.setPrice(closePrice);
         tradeReduce.setUnits(units);
         orderFillTransaction.setTime(closeTime);
-        orderFillTransaction.setTradeReduced(tradeReduce);
 
-        if (!tradeClosed) {
-            orderFillTransaction.setTradeReduced(null);
+        if (tradeClosed) {
+            orderFillTransaction.setTradesClosed(new ArrayList<>(List.of(tradeReduce)));
         }
 
         when(mockCtx.trade.close(any(TradeCloseRequest.class))).thenReturn(mockTradeCloseResponse);
