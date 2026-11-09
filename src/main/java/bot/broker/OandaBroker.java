@@ -14,9 +14,7 @@ import com.oanda.v20.pricing.ClientPrice;
 import com.oanda.v20.pricing.PricingGetRequest;
 import com.oanda.v20.pricing.PricingGetResponse;
 import com.oanda.v20.primitives.InstrumentName;
-import com.oanda.v20.trade.TradeCloseRequest;
-import com.oanda.v20.trade.TradeCloseResponse;
-import com.oanda.v20.trade.TradeSpecifier;
+import com.oanda.v20.trade.*;
 import com.oanda.v20.transaction.*;
 import org.ta4j.core.BarSeries;
 import org.ta4j.core.BaseBar;
@@ -214,7 +212,7 @@ public class OandaBroker implements Broker{
             TradeCloseResponse closeResponse = ctx.trade.close(new TradeCloseRequest(accountId, new TradeSpecifier(tradeId)));
             if (closeResponse == null || closeResponse.getOrderFillTransaction() == null
                     || closeResponse.getOrderFillTransaction().getTradesClosed() == null
-                    || closeResponse.getOrderFillTransaction().getTradesClosed().getFirst() == null) {
+                    || closeResponse.getOrderFillTransaction().getTradesClosed().isEmpty()) {
                 // Log in SL4J
                 return null; // Trade wasn't closed
             }
@@ -245,6 +243,55 @@ public class OandaBroker implements Broker{
         }  catch (RequestException | ExecuteException e) {
             throw new BrokerException("Unable retrieve close price in USD for " + instrument, e);
         }
+    }
+
+    @Override
+    public TradeStatusDetails getTradeStatus(String tradeId) {
+        try {
+            TradeGetResponse tradeResponse = ctx.trade.get(accountId, new TradeSpecifier(tradeId));
+            Trade trade = tradeResponse.getTrade();
+            // Determine if trade is open or closed (close when tradeable is recognized as open, and will be reconciled when closed)
+            if (trade.getState() == TradeState.OPEN || trade.getState() == TradeState.CLOSE_WHEN_TRADEABLE) {
+                // Return the wrapper, only containing the open trade status
+                return new TradeStatusDetails(TradeStatusDetails.Status.OPEN);
+                // Log unrealize pnl in SL4J
+            }
+
+            // Get the close reason
+            TransactionID closingTransactionId = trade.getClosingTransactionIDs().getFirst(); // Trades will be closed in one transaction
+            TransactionGetResponse transactionResponse = ctx.transaction.get(accountId, closingTransactionId);
+            TransactionType type = transactionResponse.getTransaction().getType();
+
+            TradeCloseReason closeReason = null;
+            switch (type) {
+                case TransactionType.TAKE_PROFIT_ORDER:
+                    closeReason = TradeCloseReason.TAKE_PROFIT;
+                    break;
+                case TransactionType.STOP_LOSS_ORDER:
+                    closeReason = TradeCloseReason.STOP_LOSS;
+                    break;
+                case TransactionType.TRAILING_STOP_LOSS_ORDER:
+                    closeReason = TradeCloseReason.TRAILING_STOP_LOSS;
+                    break;
+                default:
+                    System.out.println("Unexpected close reason occurred: " + type); // Temporary until SL4J is implemented
+                    // Log in SL4J that an unexpected trade close reason occurred, along with the specific reason
+                    // however continue with close reason as null, to make sure the trade is closed in the database
+            }
+
+            // Build Filled Trade Details
+            FilledTradeDetails filledTradeDetails = new FilledTradeDetails(
+                    tradeId,
+                    trade.getPrice().bigDecimalValue(),
+                    Instant.parse(trade.getCloseTime()),
+                    trade.getInitialUnits().bigDecimalValue()
+            );
+
+            return new TradeStatusDetails(TradeStatusDetails.Status.CLOSED, closeReason, filledTradeDetails);
+        } catch (RequestException | ExecuteException e) {
+            throw new BrokerException("Error retrieving trade status from Oanda: " + tradeId, e);
+        }
+
     }
 
     // Helper method used for placing trades. Ensures the account exists and has a non-zero balance.

@@ -1,5 +1,6 @@
 package bot.data;
 
+import bot.broker.TradeCloseReason;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.io.TempDir;
 import java.nio.file.Path;
@@ -47,21 +48,21 @@ public class DatabaseTest {
     @Test
     void closeOpenTradeTest() {
         Database.insertOpenTrade("Oanda", "00001", "EUR_USD", 1.15993, "2026-09-12 10:30:45", 1);
-        assertTrue(Database.closeOpenTrade("00001", "Oanda", 1.16015, "2026-09-18 10:32:28"));
+        assertTrue(Database.closeOpenTrade("00001", "Oanda", 1.16015, "2026-09-18 10:32:28", TradeCloseReason.STRATEGY_EXIT));
     }
 
     // Attempt to close a trade that is already closed
     @Test
     void closeOpenTradeAlreadyClosedTest() {
         Database.insertOpenTrade("Oanda", "00001", "EUR_USD", 1.15993, "2026-09-12 10:30:45", 1);
-        Database.closeOpenTrade("00001", "Oanda", 1.16015, "2026-09-18 10:32:28");
-        assertFalse(Database.closeOpenTrade("00001", "Oanda", 1.99999, "2026-09-18 11:11:11"));
+        Database.closeOpenTrade("00001", "Oanda", 1.16015, "2026-09-18 10:32:28", TradeCloseReason.STRATEGY_EXIT);
+        assertFalse(Database.closeOpenTrade("00001", "Oanda", 1.99999, "2026-09-18 11:11:11", TradeCloseReason.STRATEGY_EXIT));
     }
 
     // Attempt to close a trade that doesn't exist
     @Test
     void closeOpenTradeNotExistTest() {
-        assertFalse(Database.closeOpenTrade("00001", "Oanda", 1.99999, "2026-09-18 11:11:11"));
+        assertFalse(Database.closeOpenTrade("00001", "Oanda", 1.99999, "2026-09-18 11:11:11", TradeCloseReason.STRATEGY_EXIT));
     }
 
     // Attempt to close a trade with the same id, but a different broker
@@ -72,7 +73,7 @@ public class DatabaseTest {
         Database.insertOpenTrade("Alpaca", "00001", "EUR_USD", 1.15993, "2026-09-12 10:30:45", 5);
 
         // Close just the Oanda trade
-        assertTrue(Database.closeOpenTrade("00001", "Oanda", 1.16015, "2026-09-18 10:32:28"));
+        assertTrue(Database.closeOpenTrade("00001", "Oanda", 1.16015, "2026-09-18 10:32:28", TradeCloseReason.STRATEGY_EXIT));
 
         // Verify that the Alpaca trade is still open
         assertNotNull(Database.getOpenTradeId("Alpaca", "EUR_USD"));

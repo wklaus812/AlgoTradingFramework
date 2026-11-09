@@ -1,6 +1,10 @@
 package bot.data;
 
+import bot.broker.TradeCloseReason;
+
 import java.sql.*;
+import java.util.ArrayList;
+import java.util.List;
 
 public class Database {
     private static String url = "jdbc:sqlite:TradeHistory";
@@ -16,7 +20,8 @@ public class Database {
             close_price         REAL,
             open_date           TEXT,
             close_date          TEXT,
-            trade_size          REAL
+            trade_size          REAL,
+            close_reason        TEXT CHECK (close_reason IN 'TAKE_PROFIT', 'STOP_LOSS', 'TRAILING_STOP_LOSS', 'STRATEGY_EXIT')
         );
         """;
 
@@ -82,12 +87,13 @@ public class Database {
     }
 
     // Marks a trade with the provided tradeId and broker as closed
-    public static boolean closeOpenTrade(String tradeId, String broker, double closePrice, String closeDate) {
+    public static boolean closeOpenTrade(String tradeId, String broker, double closePrice, String closeDate, TradeCloseReason closeReason) {
         String sql = """
                 UPDATE  trades
                 SET     close_price     = ?,
                         close_date      = ?,
-                        open_trade      = 0
+                        open_trade      = 0,
+                        close_reason    = ?
                 WHERE   broker_trade_id = ? AND
                         broker          = ? AND
                         open_trade      = 1
@@ -97,8 +103,9 @@ public class Database {
             // Set the statement parameters
             pstmt.setDouble(1, closePrice);
             pstmt.setString(2, closeDate);
-            pstmt.setString(3, tradeId);
-            pstmt.setString(4, broker);
+            pstmt.setString(3, closeReason != null ? closeReason.toString() : "");
+            pstmt.setString(4, tradeId);
+            pstmt.setString(5, broker);
 
             // Execute query
             int rowsUpdated = pstmt.executeUpdate();
@@ -138,6 +145,32 @@ public class Database {
                 // Throw custom database exception?
                 return null;
             }
+        } catch (SQLException e) {
+            System.out.println(e.getMessage());
+            return null;
+        }
+    }
+
+    public static List<String> getOpenTradeIds(String broker) {
+        String sql = """
+                SELECT  broker_trade_id
+                FROM    trades
+                WHERE   broker          = ?  AND
+                        open_trade      = 1;
+                """;
+
+        try (Connection conn = DriverManager.getConnection(url); PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            List<String> openTradeIds = new ArrayList<>();
+
+            // Set the statement parameters
+            pstmt.setString(1, broker);
+
+            // Executes the query and adds each trade id to a list
+            ResultSet rs = pstmt.executeQuery();
+            while (rs.next()) {
+                openTradeIds.add(rs.getString("broker_trade_id"));
+            }
+            return openTradeIds;
         } catch (SQLException e) {
             System.out.println(e.getMessage());
             return null;

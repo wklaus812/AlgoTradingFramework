@@ -4,6 +4,7 @@ import bot.broker.Broker;
 import bot.Config;
 import bot.broker.FilledTradeDetails;
 import bot.broker.OrderDetails;
+import bot.broker.TradeCloseReason;
 import bot.data.Database;
 import org.ta4j.core.*;
 import org.ta4j.core.indicators.ATRIndicator;
@@ -101,7 +102,8 @@ public class TradingEngine {
         String tradeId = Database.getOpenTradeId(broker.getBrokerName(), instrumentName);
         FilledTradeDetails fillDetails = broker.closePosition(instrumentName, tradeId);
         if (fillDetails != null) {
-            Database.closeOpenTrade(tradeId, broker.getBrokerName(), fillDetails.getFillPrice().doubleValue(), fillDetails.getFillDate().toString());
+            Database.closeOpenTrade(tradeId, broker.getBrokerName(), fillDetails.getFillPrice().doubleValue(),
+                    fillDetails.getFillDate().toString(), TradeCloseReason.STRATEGY_EXIT);
 
             // SL4J log here: current date/time, Instrument, close price, trade size, gross profit, net profit, return
         }

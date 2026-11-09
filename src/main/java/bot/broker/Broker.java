@@ -12,5 +12,6 @@ public interface Broker {
     FilledTradeDetails placeMarketOrder(String instrument, int tradeSize, OrderDetails details);
     FilledTradeDetails closePosition(String instrument, String tradeId);
     BigDecimal getClosePriceInUsd(String instrument);
+    TradeStatusDetails getTradeStatus(String tradeId);
     String getBrokerName();
 }

@@ -17,9 +17,7 @@ public class EmaCrossStrategyFactory implements StrategyFactory {
         ClosePriceIndicator closePrice = new ClosePriceIndicator(series);
         EMAIndicator ema = new EMAIndicator(closePrice, 25);
         Rule buyingRule = new CrossedUpIndicatorRule(ema, closePrice);
-        Rule sellingRule = new CrossedDownIndicatorRule(ema, closePrice)
-                .or(new TrailingStopLossRule(closePrice, series.numFactory().numOf(4)))     // Determine using average true range
-                .or(new StopGainRule(closePrice, series.numFactory().numOf(3)));            // Determine using average true range
+        Rule sellingRule = new CrossedDownIndicatorRule(ema, closePrice);
 
         return new BaseStrategy(buyingRule, sellingRule);
     }
