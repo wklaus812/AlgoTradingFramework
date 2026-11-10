@@ -260,29 +260,31 @@ public class OandaBroker implements Broker{
             // Get the close reason
             TransactionID closingTransactionId = trade.getClosingTransactionIDs().getFirst(); // Trades will be closed in one transaction
             TransactionGetResponse transactionResponse = ctx.transaction.get(accountId, closingTransactionId);
-            TransactionType type = transactionResponse.getTransaction().getType();
 
-            TradeCloseReason closeReason = null;
-            switch (type) {
-                case TransactionType.TAKE_PROFIT_ORDER:
-                    closeReason = TradeCloseReason.TAKE_PROFIT;
-                    break;
-                case TransactionType.STOP_LOSS_ORDER:
-                    closeReason = TradeCloseReason.STOP_LOSS;
-                    break;
-                case TransactionType.TRAILING_STOP_LOSS_ORDER:
-                    closeReason = TradeCloseReason.TRAILING_STOP_LOSS;
-                    break;
-                default:
-                    System.out.println("Unexpected close reason occurred: " + type); // Temporary until SL4J is implemented
-                    // Log in SL4J that an unexpected trade close reason occurred, along with the specific reason
-                    // however continue with close reason as null, to make sure the trade is closed in the database
+            TradeCloseReason closeReason = TradeCloseReason.UNKNOWN;
+            if (transactionResponse.getTransaction() instanceof OrderFillTransaction fill) {
+                OrderFillReason reason = fill.getReason();
+                switch (reason) {
+                    case OrderFillReason.TAKE_PROFIT_ORDER:
+                        closeReason = TradeCloseReason.TAKE_PROFIT;
+                        break;
+                    case OrderFillReason.STOP_LOSS_ORDER:
+                        closeReason = TradeCloseReason.STOP_LOSS;
+                        break;
+                    case OrderFillReason.TRAILING_STOP_LOSS_ORDER:
+                        closeReason = TradeCloseReason.TRAILING_STOP_LOSS;
+                        break;
+                    default:
+                        System.out.println("Unexpected close reason occurred: " + reason); // Temporary until SL4J is implemented
+                        // Log in SL4J that an unexpected trade close reason occurred, along with the specific reason
+                        // however continue with close reason as null, to make sure the trade is closed in the database
+                }
             }
 
             // Build Filled Trade Details
             FilledTradeDetails filledTradeDetails = new FilledTradeDetails(
                     tradeId,
-                    trade.getPrice().bigDecimalValue(),
+                    trade.getAverageClosePrice().bigDecimalValue(),
                     Instant.parse(trade.getCloseTime()),
                     trade.getInitialUnits().bigDecimalValue()
             );

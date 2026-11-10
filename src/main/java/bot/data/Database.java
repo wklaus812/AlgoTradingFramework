@@ -21,7 +21,7 @@ public class Database {
             open_date           TEXT,
             close_date          TEXT,
             trade_size          REAL,
-            close_reason        TEXT CHECK (close_reason IN 'TAKE_PROFIT', 'STOP_LOSS', 'TRAILING_STOP_LOSS', 'STRATEGY_EXIT')
+            close_reason        TEXT CHECK close_reason IN ('TAKE_PROFIT', 'STOP_LOSS', 'TRAILING_STOP_LOSS', 'STRATEGY_EXIT', 'UNKNOWN')
         );
         """;
 
@@ -103,7 +103,7 @@ public class Database {
             // Set the statement parameters
             pstmt.setDouble(1, closePrice);
             pstmt.setString(2, closeDate);
-            pstmt.setString(3, closeReason != null ? closeReason.toString() : "");
+            pstmt.setString(3, closeReason.toString());
             pstmt.setString(4, tradeId);
             pstmt.setString(5, broker);
 

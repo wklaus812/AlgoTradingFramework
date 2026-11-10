@@ -3,6 +3,7 @@ package bot.testutils;
 import bot.broker.Broker;
 import bot.broker.FilledTradeDetails;
 import bot.broker.OrderDetails;
+import bot.broker.TradeStatusDetails;
 import org.ta4j.core.Bar;
 import org.ta4j.core.BarSeries;
 
@@ -78,6 +79,11 @@ public class FakeBroker implements Broker {
         closedTradeIds.add(tradeId);
         if (rejectNextOrder) return null;       // Log that the order was requested, but "reject" by returning null
         return fakeClosePositionFillDetails;
+    }
+
+    @Override
+    public TradeStatusDetails getTradeStatus(String tradeId) {
+        return null;
     }
 
 }
