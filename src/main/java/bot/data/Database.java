@@ -21,7 +21,7 @@ public class Database {
             open_date           TEXT,
             close_date          TEXT,
             trade_size          REAL,
-            close_reason        TEXT CHECK close_reason IN ('TAKE_PROFIT', 'STOP_LOSS', 'TRAILING_STOP_LOSS', 'STRATEGY_EXIT', 'UNKNOWN')
+            close_reason        TEXT CHECK (close_reason IN ('TAKE_PROFIT', 'STOP_LOSS', 'TRAILING_STOP_LOSS', 'STRATEGY_EXIT', 'UNKNOWN'))
         );
         """;
 
