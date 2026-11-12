@@ -1,7 +1,6 @@
 package bot.engine;
 
 import bot.broker.Broker;
-import bot.Config;
 import bot.broker.FilledTradeDetails;
 import bot.broker.OrderDetails;
 import bot.broker.TradeCloseReason;

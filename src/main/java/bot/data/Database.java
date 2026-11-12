@@ -44,7 +44,7 @@ public class Database {
                 System.out.println("Connected to database.");
             }
         } catch (SQLException e) {
-            System.out.println(e.getMessage());
+            throw new DatabaseException("Error connecting to database", e);
         }
         createDatabase();
     }
@@ -56,7 +56,7 @@ public class Database {
             stmt.execute(createUniqueIndex);
             System.out.println("trades table created");
         } catch (SQLException e) {
-            System.out.println(e.getMessage());
+            throw new DatabaseException("Error creating trades table", e);
         }
     }
 
@@ -81,8 +81,7 @@ public class Database {
             System.out.println("trade inserted");
             return true;
         } catch (SQLException e) {
-            System.out.println(e.getMessage());
-            return false;
+            throw new DatabaseException("Error inserting trade to database for tradeId " + tradeId, e);
         }
     }
 
@@ -117,8 +116,7 @@ public class Database {
                 return false;
             }
         } catch (SQLException e) {
-            System.out.println(e.getMessage());
-            return false;
+            throw new DatabaseException("Error closing trade in database for tradeId " + tradeId, e);
         }
 
     }
@@ -141,13 +139,10 @@ public class Database {
             ResultSet rs = pstmt.executeQuery();
             if (rs.next()) {
                 return rs.getString("broker_trade_id");
-            } else {
-                // Throw custom database exception?
-                return null;
             }
-        } catch (SQLException e) {
-            System.out.println(e.getMessage());
             return null;
+        } catch (SQLException e) {
+            throw new DatabaseException("Error querying open trade for " + broker + " broker and " + instrument + " instrument", e);
         }
     }
 
@@ -172,8 +167,7 @@ public class Database {
             }
             return openTradeIds;
         } catch (SQLException e) {
-            System.out.println(e.getMessage());
-            return null;
+            throw new DatabaseException("Error querying open trade for " + broker + " broker", e);
         }
     }
 
@@ -201,7 +195,7 @@ public class Database {
                 );
             }
         } catch (SQLException e) {
-            System.out.println(e.getMessage());
+            throw new DatabaseException("Error printing all rows from trades table", e);
         }
     }
 
