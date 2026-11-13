@@ -151,7 +151,8 @@ public class Database {
                 SELECT  broker_trade_id
                 FROM    trades
                 WHERE   broker          = ?  AND
-                        open_trade      = 1;
+                        open_trade      = 1
+                ORDER BY broker_trade_id;
                 """;
 
         try (Connection conn = DriverManager.getConnection(url); PreparedStatement pstmt = conn.prepareStatement(sql)) {

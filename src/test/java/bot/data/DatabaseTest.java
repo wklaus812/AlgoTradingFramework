@@ -3,7 +3,10 @@ package bot.data;
 import bot.broker.TradeCloseReason;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.io.TempDir;
+
+import javax.xml.crypto.Data;
 import java.nio.file.Path;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -41,7 +44,7 @@ public class DatabaseTest {
     @Test
     void insertOpenTradeTwoSameBrokerAndInstrumentTest() {
         assertTrue(Database.insertOpenTrade("Oanda", "00001", "EUR_USD", 1.15993, "2026-09-12 10:30:45", 1));
-        assertFalse(Database.insertOpenTrade("Oanda", "00002", "EUR_USD", 1.15993, "2026-09-12 10:30:45", 1));
+        assertThrows(DatabaseException.class, () -> Database.insertOpenTrade("Oanda", "00002", "EUR_USD", 1.15993, "2026-09-12 10:30:45", 1));
     }
 
     // Close an open trade
@@ -94,6 +97,28 @@ public class DatabaseTest {
     void getOpenTradeIdTrueTest() {
         assertTrue(Database.insertOpenTrade("Oanda", "00001", "EUR_USD", 1.15993, "2026-09-12 10:30:45", 1));
         assertNotNull(Database.getOpenTradeId("Oanda", "EUR_USD"));
+    }
+
+    // getOpenTradeIds tests
+    @Test
+    void getOpenTradeIdsTest() {
+        // Open 3 trades
+        Database.insertOpenTrade("Oanda", "00001", "EUR_USD", 1.15993, "2026-09-12 10:30:45", 1);
+        Database.insertOpenTrade("Oanda", "00002", "GBP_USD", 1.3237, "2026-11-13 10:30:45", 1);
+        Database.insertOpenTrade("Oanda", "00003", "USD_CAD", 1.4249, "2026-11-13 10:20:10", 1);
+        // Close 1 trade
+        Database.closeOpenTrade("00001", "Oanda", 1.16015, "2026-09-18 10:32:28", TradeCloseReason.STRATEGY_EXIT);
+        // Verify the open trades
+        List<String> openTradeIds = Database.getOpenTradeIds("Oanda");
+        assertEquals(2, openTradeIds.size());
+        assertEquals("00002", openTradeIds.getFirst());
+        assertEquals("00003", openTradeIds.getLast());
+    }
+
+    @Test
+    void getOpenTradeIdsNoOpenTradesTest() {
+        List<String> openTradeIds = Database.getOpenTradeIds("Oanda");
+        assertEquals(0, openTradeIds.size());
     }
 
     // Date Format: yyyy-MM-dd HH:mm:ss

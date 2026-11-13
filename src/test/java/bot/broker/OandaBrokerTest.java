@@ -268,7 +268,38 @@ public class OandaBrokerTest {
         assertEquals("Unable to close position for EUR_USD", brokerException.getMessage());
     }
 
-    // validateAccountTests, mostly just testing exceptions, success cases covered by others
+    // getTradeStatus tests
+    @Test
+    void getTradeStatusOpenTest() {
+
+    }
+
+    @Test
+    void getTradeStatusClosedTakeProfitTest() {
+
+    }
+
+    @Test
+    void getTradeStatusClosedStopLossTest() {
+
+    }
+
+    @Test
+    void getTradeStatusClosedTrailingStopLossTest() {
+
+    }
+
+    @Test
+    void getTradeStatusClosedUnknownTest() {
+
+    }
+
+    @Test
+    void getTradeStatusExceptionTest() {
+
+    }
+
+    // validateAccount Tests, mostly just testing exceptions, success cases covered by others
     @Test
     void validateAccountExecuteException() throws ExecuteException, RequestException {
         // Stub exception
