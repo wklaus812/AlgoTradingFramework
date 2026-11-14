@@ -1,8 +1,10 @@
 package bot.engine;
 
 import bot.broker.Broker;
+import bot.broker.BrokerException;
 import bot.broker.TradeStatusDetails;
 import bot.data.Database;
+import bot.data.DatabaseException;
 import bot.strategy.StrategyFactory;
 import org.ta4j.core.BarSeries;
 import org.ta4j.core.num.Num;
@@ -30,18 +32,17 @@ public class TradingBot {
 
         // Loop over each Trading Engine
         for (TradingEngine engine : tradingEngines) {
-            engine.run();
+            try {
+                engine.run();
+            } catch (BrokerException | DatabaseException e) {
+                System.out.println("Error running engine for " + engine.getInstrument() + ": " + e.getMessage());
+            }
         }
     }
 
     private void reconcileDatabaseWithBroker(Broker broker) {
         // Get a list of open trade ids from the database, for provided broker
-        List<String> openTradeIds = Database.getOpenTradeIds(broker.getBrokerName());
-        if (openTradeIds == null) {
-            // This is temporary, add a database exception that gets thrown
-            System.out.println("Error getting open tradeIds");
-            return;
-        }
+        List<String> openTradeIds = Database.getOpenTradeIds(broker.getBrokerName()); // No try-catch intentionally, the bot should crash if this fails
         List<TradeStatusDetails> tradeStatusDetailsList = new ArrayList<>();
 
         // Get the status of each trade from Oanda
@@ -51,10 +52,10 @@ public class TradingBot {
                 if (details.getTradeStatus() == TradeStatusDetails.Status.CLOSED) {
                     tradeStatusDetailsList.add(details);
                 }
-            } catch (Exception e) {
+            } catch (BrokerException e) {
+                System.out.println(e.getMessage());
                 // Log in SL4J, that there was a failure getting trade status
             }
-
         }
 
         // Update the database with the closed trades
@@ -63,14 +64,13 @@ public class TradingBot {
         // time, so this is ok for now
         for (TradeStatusDetails details : tradeStatusDetailsList) {
             Database.closeOpenTrade(
-                    details.getFilledTradeDetails().getTradeId(),
+                    details.getTradeId(),
                     broker.getBrokerName(),
                     details.getFilledTradeDetails().getFillPrice().doubleValue(),
                     details.getFilledTradeDetails().getFillDate().toString(),
                     details.getCloseReason()
             );
         }
-
     }
 
     // Builds a map of all forex instruments, getting the number of historical bars requested

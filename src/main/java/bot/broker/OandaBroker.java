@@ -252,8 +252,8 @@ public class OandaBroker implements Broker{
             Trade trade = tradeResponse.getTrade();
             // Determine if trade is open or closed (close when tradeable is recognized as open, and will be reconciled when closed)
             if (trade.getState() == TradeState.OPEN || trade.getState() == TradeState.CLOSE_WHEN_TRADEABLE) {
-                // Return the wrapper, only containing the open trade status
-                return new TradeStatusDetails(TradeStatusDetails.Status.OPEN);
+                // Return the wrapper, only containing the id and open trade status
+                return new TradeStatusDetails(tradeId, TradeStatusDetails.Status.OPEN);
                 // Log unrealize pnl in SL4J
             }
 
@@ -277,7 +277,7 @@ public class OandaBroker implements Broker{
                     default:
                         System.out.println("Unexpected close reason occurred: " + reason); // Temporary until SL4J is implemented
                         // Log in SL4J that an unexpected trade close reason occurred, along with the specific reason
-                        // however continue with close reason as null, to make sure the trade is closed in the database
+                        // however continue with close reason as unknown, to make sure the trade is closed in the database
                 }
             }
 
@@ -289,8 +289,8 @@ public class OandaBroker implements Broker{
                     trade.getInitialUnits().bigDecimalValue()
             );
 
-            return new TradeStatusDetails(TradeStatusDetails.Status.CLOSED, closeReason, filledTradeDetails);
-        } catch (RequestException | ExecuteException e) {
+            return new TradeStatusDetails(tradeId, TradeStatusDetails.Status.CLOSED, closeReason, filledTradeDetails);
+        } catch (RequestException | ExecuteException | NullPointerException e) {
             throw new BrokerException("Error retrieving trade status from Oanda: " + tradeId, e);
         }
 

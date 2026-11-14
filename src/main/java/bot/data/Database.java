@@ -168,7 +168,7 @@ public class Database {
             }
             return openTradeIds;
         } catch (SQLException e) {
-            throw new DatabaseException("Error querying open trade for " + broker + " broker", e);
+            throw new DatabaseException("Error querying open trades for " + broker + " broker", e);
         }
     }
 
@@ -192,7 +192,8 @@ public class Database {
                                 ", open_date=" + rs.getString("open_date") +
                                 ", close_price=" + rs.getDouble("close_price") +
                                 ", close_date=" + rs.getString("close_date") +
-                                ", close_date=" + rs.getDouble("trade_size")
+                                ", trade_size=" + rs.getDouble("trade_size") +
+                                ", close_reason=" + rs.getDouble("close_reason")
                 );
             }
         } catch (SQLException e) {

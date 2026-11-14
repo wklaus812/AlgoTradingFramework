@@ -4,7 +4,6 @@ import bot.broker.TradeCloseReason;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.io.TempDir;
 
-import javax.xml.crypto.Data;
 import java.nio.file.Path;
 import java.util.List;
 
@@ -120,6 +119,4 @@ public class DatabaseTest {
         List<String> openTradeIds = Database.getOpenTradeIds("Oanda");
         assertEquals(0, openTradeIds.size());
     }
-
-    // Date Format: yyyy-MM-dd HH:mm:ss
 }

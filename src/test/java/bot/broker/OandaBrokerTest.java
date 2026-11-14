@@ -8,12 +8,8 @@ import com.oanda.v20.account.*;
 import com.oanda.v20.instrument.*;
 import com.oanda.v20.order.*;
 import com.oanda.v20.primitives.AccountUnits;
-import com.oanda.v20.trade.TradeCloseRequest;
-import com.oanda.v20.trade.TradeCloseResponse;
-import com.oanda.v20.trade.TradeContext;
-import com.oanda.v20.transaction.OrderFillTransaction;
-import com.oanda.v20.transaction.TradeOpen;
-import com.oanda.v20.transaction.TradeReduce;
+import com.oanda.v20.trade.*;
+import com.oanda.v20.transaction.*;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -47,6 +43,10 @@ public class OandaBrokerTest {
 
     @Mock TradeContext mockTradeContext;
     @Mock TradeCloseResponse mockTradeCloseResponse;
+
+    @Mock TradeGetResponse mockTradeGetResponse;
+    @Mock TransactionContext mockTransactionContext;
+    @Mock TransactionGetResponse mockTransactionGetResponse;
 
     // getHistoricalBarSeries tests
     @Test
@@ -270,33 +270,160 @@ public class OandaBrokerTest {
 
     // getTradeStatus tests
     @Test
-    void getTradeStatusOpenTest() {
+    void getTradeStatusOpenTest() throws ExecuteException, RequestException {
+        // Mock the trade status
+        String tradeId = "00001";
+        mockCtx.trade = mockTradeContext;
+        TradeSpecifier tradeSpecifier = new TradeSpecifier(tradeId);
+        when(mockTradeContext.get(mockAccountId, tradeSpecifier)).thenReturn(mockTradeGetResponse);
+        Trade trade = new Trade();
+        trade.setState(TradeState.OPEN);
+        trade.setId(tradeId);
+        when(mockTradeGetResponse.getTrade()).thenReturn(trade);
 
+        // Create Broker and call getTradeStatus
+        OandaBroker testBroker = new OandaBroker(mockCtx, mockAccountId);
+        TradeStatusDetails details = testBroker.getTradeStatus(tradeId);
+        assertEquals(tradeId, details.getTradeId());
+        assertEquals(TradeStatusDetails.Status.OPEN, details.getTradeStatus());
     }
 
     @Test
-    void getTradeStatusClosedTakeProfitTest() {
+    void getTradeStatusClosedTakeProfitTest() throws ExecuteException, RequestException {
+        // Mock the trade status
+        String tradeId = "00001";
+        mockCtx.trade = mockTradeContext;
+        TradeSpecifier tradeSpecifier = new TradeSpecifier(tradeId);
+        when(mockTradeContext.get(mockAccountId, tradeSpecifier)).thenReturn(mockTradeGetResponse);
+        Trade trade = new Trade();
+        trade.setState(TradeState.CLOSED);
+        trade.setId(tradeId);
+        trade.setClosingTransactionIDs(new ArrayList<>(List.of(new TransactionID("txn_01"))));
+        trade.setAverageClosePrice(1.14152);
+        trade.setCloseTime("2026-11-03T23:00:00Z");
+        trade.setInitialUnits(new BigDecimal("10"));
+        when(mockTradeGetResponse.getTrade()).thenReturn(trade);
 
+        // mock transaction get response
+        mockCtx.transaction = mockTransactionContext;
+        when(mockTransactionContext.get(mockAccountId, trade.getClosingTransactionIDs().getFirst())).thenReturn(mockTransactionGetResponse);
+        OrderFillTransaction fillTransaction = new OrderFillTransaction();
+        fillTransaction.setReason(OrderFillReason.TAKE_PROFIT_ORDER);
+        when(mockTransactionGetResponse.getTransaction()).thenReturn(fillTransaction);
+
+        // Create Broker and call getTradeStatus
+        OandaBroker testBroker = new OandaBroker(mockCtx, mockAccountId);
+        TradeStatusDetails details = testBroker.getTradeStatus(tradeId);
+        assertEquals(tradeId, details.getTradeId());
+        assertEquals(TradeStatusDetails.Status.CLOSED, details.getTradeStatus());
+        assertEquals(TradeCloseReason.TAKE_PROFIT, details.getCloseReason());
+        assertEquals("2026-11-03T23:00:00Z", details.getFilledTradeDetails().getFillDate().toString());
+        assertEquals(10, details.getFilledTradeDetails().getUnits().doubleValue());
     }
 
     @Test
-    void getTradeStatusClosedStopLossTest() {
+    void getTradeStatusClosedStopLossTest() throws ExecuteException, RequestException {
+        // Mock the trade status
+        String tradeId = "00001";
+        mockCtx.trade = mockTradeContext;
+        TradeSpecifier tradeSpecifier = new TradeSpecifier(tradeId);
+        when(mockTradeContext.get(mockAccountId, tradeSpecifier)).thenReturn(mockTradeGetResponse);
+        Trade trade = new Trade();
+        trade.setState(TradeState.CLOSED);
+        trade.setId(tradeId);
+        trade.setClosingTransactionIDs(new ArrayList<>(List.of(new TransactionID("txn_01"))));
+        trade.setAverageClosePrice(1.14152);
+        trade.setCloseTime("2026-11-03T23:00:00Z");
+        trade.setInitialUnits(new BigDecimal("10"));
+        when(mockTradeGetResponse.getTrade()).thenReturn(trade);
 
+        // mock transaction get response
+        mockCtx.transaction = mockTransactionContext;
+        when(mockTransactionContext.get(mockAccountId, trade.getClosingTransactionIDs().getFirst())).thenReturn(mockTransactionGetResponse);
+        OrderFillTransaction fillTransaction = new OrderFillTransaction();
+        fillTransaction.setReason(OrderFillReason.STOP_LOSS_ORDER);
+        when(mockTransactionGetResponse.getTransaction()).thenReturn(fillTransaction);
+
+        // Create Broker and call getTradeStatus
+        OandaBroker testBroker = new OandaBroker(mockCtx, mockAccountId);
+        TradeStatusDetails details = testBroker.getTradeStatus(tradeId);
+        assertEquals(TradeCloseReason.STOP_LOSS, details.getCloseReason());
     }
 
     @Test
-    void getTradeStatusClosedTrailingStopLossTest() {
+    void getTradeStatusClosedTrailingStopLossTest() throws ExecuteException, RequestException {
+        // Mock the trade status
+        String tradeId = "00001";
+        mockCtx.trade = mockTradeContext;
+        TradeSpecifier tradeSpecifier = new TradeSpecifier(tradeId);
+        when(mockTradeContext.get(mockAccountId, tradeSpecifier)).thenReturn(mockTradeGetResponse);
+        Trade trade = new Trade();
+        trade.setState(TradeState.CLOSED);
+        trade.setId(tradeId);
+        trade.setClosingTransactionIDs(new ArrayList<>(List.of(new TransactionID("txn_01"))));
+        trade.setAverageClosePrice(1.14152);
+        trade.setCloseTime("2026-11-03T23:00:00Z");
+        trade.setInitialUnits(new BigDecimal("10"));
+        when(mockTradeGetResponse.getTrade()).thenReturn(trade);
 
+        // mock transaction get response
+        mockCtx.transaction = mockTransactionContext;
+        when(mockTransactionContext.get(mockAccountId, trade.getClosingTransactionIDs().getFirst())).thenReturn(mockTransactionGetResponse);
+        OrderFillTransaction fillTransaction = new OrderFillTransaction();
+        fillTransaction.setReason(OrderFillReason.TRAILING_STOP_LOSS_ORDER);
+        when(mockTransactionGetResponse.getTransaction()).thenReturn(fillTransaction);
+
+        // Create Broker and call getTradeStatus
+        OandaBroker testBroker = new OandaBroker(mockCtx, mockAccountId);
+        TradeStatusDetails details = testBroker.getTradeStatus(tradeId);
+        assertEquals(TradeCloseReason.TRAILING_STOP_LOSS, details.getCloseReason());
     }
 
     @Test
-    void getTradeStatusClosedUnknownTest() {
+    void getTradeStatusClosedUnknownTest() throws ExecuteException, RequestException {
+        // Mock the trade status
+        String tradeId = "00001";
+        mockCtx.trade = mockTradeContext;
+        TradeSpecifier tradeSpecifier = new TradeSpecifier(tradeId);
+        when(mockTradeContext.get(mockAccountId, tradeSpecifier)).thenReturn(mockTradeGetResponse);
+        Trade trade = new Trade();
+        trade.setState(TradeState.CLOSED);
+        trade.setId(tradeId);
+        trade.setClosingTransactionIDs(new ArrayList<>(List.of(new TransactionID("txn_01"))));
+        trade.setAverageClosePrice(1.14152);
+        trade.setCloseTime("2026-11-03T23:00:00Z");
+        trade.setInitialUnits(new BigDecimal("10"));
+        when(mockTradeGetResponse.getTrade()).thenReturn(trade);
 
+        // mock transaction get response
+        mockCtx.transaction = mockTransactionContext;
+        when(mockTransactionContext.get(mockAccountId, trade.getClosingTransactionIDs().getFirst())).thenReturn(mockTransactionGetResponse);
+        OrderFillTransaction fillTransaction = new OrderFillTransaction();
+        fillTransaction.setReason(OrderFillReason.MARKET_ORDER);
+        when(mockTransactionGetResponse.getTransaction()).thenReturn(fillTransaction);
+
+        // Create Broker and call getTradeStatus
+        OandaBroker testBroker = new OandaBroker(mockCtx, mockAccountId);
+        TradeStatusDetails details = testBroker.getTradeStatus(tradeId);
+        assertEquals(TradeCloseReason.UNKNOWN, details.getCloseReason());
     }
 
     @Test
-    void getTradeStatusExceptionTest() {
+    void getTradeStatusExceptionTest() throws ExecuteException, RequestException {
+        // Mock the trade status
+        String tradeId = "00001";
+        mockCtx.trade = mockTradeContext;
+        TradeSpecifier tradeSpecifier = new TradeSpecifier(tradeId);
+        when(mockTradeContext.get(mockAccountId, tradeSpecifier)).thenReturn(mockTradeGetResponse);
+        Trade trade = new Trade();
+        trade.setState(TradeState.CLOSED);
+        trade.setId(tradeId);
+        // Leave closing transaction ids as null to trigger a null pointer exception
+        when(mockTradeGetResponse.getTrade()).thenReturn(trade);
 
+        // Create Broker and call getTradeStatus
+        OandaBroker testBroker = new OandaBroker(mockCtx, mockAccountId);
+        assertThrows(BrokerException.class, () -> testBroker.getTradeStatus(tradeId));
     }
 
     // validateAccount Tests, mostly just testing exceptions, success cases covered by others

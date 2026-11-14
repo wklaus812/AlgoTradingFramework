@@ -120,5 +120,9 @@ public class TradingEngine {
 
         return roundedValue;
     }
+
+    public String getInstrument() {
+        return instrumentName;
+    }
 }
 

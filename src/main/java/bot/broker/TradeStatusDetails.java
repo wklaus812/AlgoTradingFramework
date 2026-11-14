@@ -7,20 +7,27 @@ public class TradeStatusDetails {
         CLOSED
     }
 
+    private String tradeId;
     private Status tradeStatus;
     private TradeCloseReason closeReason;
     private FilledTradeDetails filledTradeDetails;
 
-    public TradeStatusDetails(TradeStatusDetails.Status status) {
-        tradeStatus = status;
-        closeReason = null;
-        filledTradeDetails = null;
+    public TradeStatusDetails(String tradeId, TradeStatusDetails.Status status) {
+        this.tradeId = tradeId;
+        this.tradeStatus = status;
+        this.closeReason = null;
+        this.filledTradeDetails = null;
     }
 
-    public TradeStatusDetails(TradeStatusDetails.Status status, TradeCloseReason reason, FilledTradeDetails details) {
-        tradeStatus = status;
-        closeReason = reason;
-        filledTradeDetails = details;
+    public TradeStatusDetails(String tradeId, TradeStatusDetails.Status status, TradeCloseReason reason, FilledTradeDetails details) {
+        this.tradeId = tradeId;
+        this.tradeStatus = status;
+        this.closeReason = reason;
+        this.filledTradeDetails = details;
+    }
+
+    public String getTradeId() {
+        return tradeId;
     }
 
     public Status getTradeStatus() {
