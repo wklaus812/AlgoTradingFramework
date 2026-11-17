@@ -13,6 +13,10 @@ import org.ta4j.core.indicators.ATRIndicator;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.nio.file.Path;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.SQLException;
+import java.sql.Statement;
 import java.time.Duration;
 import java.time.Instant;
 
@@ -21,6 +25,8 @@ import static org.junit.jupiter.api.Assertions.*;
 public class TradingEngineTest {
 
     // -- Set up --
+    private String testUrl;
+
     @TempDir
     Path tempDir;
 
@@ -32,7 +38,8 @@ public class TradingEngineTest {
     void setUp() {
         // Set up database
         String testDbPath = tempDir.resolve("test.db").toString();
-        Database.connectTestContext("jdbc:sqlite:" + testDbPath);
+        testUrl = "jdbc:sqlite:" + testDbPath;
+        Database.connectTestContext(testUrl);
 
         // Seed data
         testStrategy = new TestStrategy();
@@ -259,6 +266,24 @@ public class TradingEngineTest {
 
         // Confirm the trade was logged to the database
         assertEquals("00001", Database.getOpenTradeId(fakeBroker.getBrokerName(), "EUR_USD"));
+    }
+
+    @Test
+    void enterTradeInsertFailureAfterFillDoesNotThrowTest() throws SQLException {
+        // Reads work, inserts fail
+        try (Connection c = DriverManager.getConnection(testUrl);
+             Statement s = c.createStatement()) {
+            s.execute("CREATE TRIGGER fail_insert BEFORE INSERT ON trades " +
+                    "BEGIN SELECT RAISE(ABORT, 'simulated insert failure'); END;");
+        }
+        testStrategy.setEnterNext(true);
+        TradingEngine engine = new TradingEngine(fakeBroker, testStrategy, "EUR_USD", testSeries);
+
+        assertDoesNotThrow(engine::run);
+
+        // The order was placed at the broker, but nothing was recorded
+        assertEquals(1, fakeBroker.placedMarketOrders.size());
+        assertNull(Database.getOpenTradeId(fakeBroker.getBrokerName(), "EUR_USD"));
     }
 
 
