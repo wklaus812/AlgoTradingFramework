@@ -193,7 +193,7 @@ public class Database {
                                 ", close_price=" + rs.getDouble("close_price") +
                                 ", close_date=" + rs.getString("close_date") +
                                 ", trade_size=" + rs.getDouble("trade_size") +
-                                ", close_reason=" + rs.getDouble("close_reason")
+                                ", close_reason=" + rs.getString("close_reason")
                 );
             }
         } catch (SQLException e) {
