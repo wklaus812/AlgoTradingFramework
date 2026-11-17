@@ -9,6 +9,7 @@ import bot.testutils.FakeBroker;
 import bot.testutils.TestSeries;
 import bot.testutils.TestStrategy;
 import bot.testutils.TestStrategyFactory;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.ta4j.core.BarSeries;
@@ -27,16 +28,21 @@ import static org.junit.jupiter.api.Assertions.*;
 
 public class TradingBotTest {
 
+    private String testUrl;
+
     @TempDir
     Path tempDir;
+
+    @BeforeEach
+    void setUp() {
+        String testDbPath = tempDir.resolve("test.db").toString();
+        testUrl = "jdbc:sqlite:" + testDbPath;
+        Database.connectTestContext(testUrl);
+    }
 
     // Happy path run test
     @Test
     void runTest() {
-        // Connect to temp database
-        String testDbPath = tempDir.resolve("test.db").toString();
-        Database.connectTestContext("jdbc:sqlite:" + testDbPath);
-
         // Create a fake series, broker, and strategy, which will enter on the next candle
         TestStrategyFactory testStrategyFactory = new TestStrategyFactory();
         TestStrategy testStrategy = new TestStrategy();
@@ -57,10 +63,6 @@ public class TradingBotTest {
     // Happy path reconcile test
     @Test
     void reconcileDatabaseWithBrokerTest() {
-        // Connect to temp database and seed and open trade
-        String testDbPath = tempDir.resolve("test.db").toString();
-        Database.connectTestContext("jdbc:sqlite:" + testDbPath);
-
         // Seed an open trade in the database
         Database.insertOpenTrade("Oanda", "00001", "EUR_USD", 1.15993, "2026-09-12 10:30:45", 1);
 
@@ -93,10 +95,6 @@ public class TradingBotTest {
     // Reconcile database failure, ensure this crashes the bot
     @Test
     void reconcileDatabaseWithBrokerExceptionTest() throws SQLException {
-        // Connect to temp database and seed and open trade
-        String testDbPath = tempDir.resolve("test.db").toString();
-        Database.connectTestContext("jdbc:sqlite:" + testDbPath);
-
         // Seed an open trade in the database
         Database.insertOpenTrade("Oanda", "00001", "EUR_USD", 1.15993, "2026-09-12 10:30:45", 1);
 
@@ -117,7 +115,7 @@ public class TradingBotTest {
         fakeBroker.withMarketOrderFilledTradeDetails("00002", new BigDecimal("1.1215"), Instant.now(), new BigDecimal("10"));
 
         // Drop the table, forcing an error when getOpenTradeIds gets called
-        try (Connection c = DriverManager.getConnection("jdbc:sqlite:" + testDbPath);
+        try (Connection c = DriverManager.getConnection(testUrl);
              Statement s = c.createStatement()) {
             s.execute("DROP TABLE trades");
         }
@@ -130,10 +128,6 @@ public class TradingBotTest {
     // Catch single instrument failure test
     @Test
     void runContinueAfterEngineErrorTest() {
-        // Connect to temp database
-        String testDbPath = tempDir.resolve("test.db").toString();
-        Database.connectTestContext("jdbc:sqlite:" + testDbPath);
-
         // Run the bot for two pairs
         TestStrategyFactory testStrategyFactory = new TestStrategyFactory();
         TestStrategy testStrategy = new TestStrategy();
