@@ -1,16 +1,15 @@
 package bot.testutils;
 
-import bot.broker.Broker;
-import bot.broker.FilledTradeDetails;
-import bot.broker.OrderDetails;
-import bot.broker.TradeStatusDetails;
+import bot.broker.*;
 import org.ta4j.core.Bar;
 import org.ta4j.core.BarSeries;
 
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 public class FakeBroker implements Broker {
 
@@ -19,6 +18,9 @@ public class FakeBroker implements Broker {
     private FilledTradeDetails fakeMarketOrderFillDetails = new FilledTradeDetails("00001", new BigDecimal("1"), Instant.now(), new BigDecimal("10"));
     private FilledTradeDetails fakeClosePositionFillDetails = new FilledTradeDetails("00001", new BigDecimal("1"), Instant.now(), new BigDecimal("10"));
     private boolean rejectNextOrder = false;
+    private BarSeries historicalBarSeries;
+    private TradeStatusDetails tradeStatusDetails;
+    private final Set<String> failingInstruments = new HashSet<>();
 
     // Used for assertions
     public record PlacedOrder(String instrumentName, int units, OrderDetails orderDetails){}
@@ -50,20 +52,40 @@ public class FakeBroker implements Broker {
         this.rejectNextOrder = rejectNextOrder;
     }
 
+    public void setTradeStatusDetails(String tradeId, TradeStatusDetails.Status status, TradeCloseReason reason, FilledTradeDetails fillDetails) {
+        this.tradeStatusDetails = new TradeStatusDetails(tradeId, status, reason, fillDetails);
+    }
+
+    public void failLatestBarFor(String instrument) {
+        failingInstruments.add(instrument);
+    }
+
     // Override methods
-    @Override public BigDecimal getAccountBalance() {
+    @Override
+    public BigDecimal getAccountBalance() {
         return balance;
     }
-    @Override public Bar getLatestBar(String instrument) {
+
+    @Override
+    public Bar getLatestBar(String instrument) {
+        if (failingInstruments.contains(instrument)) {
+            throw new BrokerException("Simulated failure for " + instrument);
+        }
         return nextBar;
     }
-    @Override public BarSeries getHistoricalBarSeries(String instrument) {
-        return null;
+
+    @Override
+    public BarSeries getHistoricalBarSeries(String instrument) {
+        return TestSeries.flat(50, 1.1220, 0.006);
     }
-    @Override public BigDecimal getClosePriceInUsd(String instrument) {
+
+    @Override
+    public BigDecimal getClosePriceInUsd(String instrument) {
         return BigDecimal.ONE;
     }
-    @Override public String getBrokerName() {
+
+    @Override
+    public String getBrokerName() {
         return "fake";
     }
 
@@ -83,7 +105,8 @@ public class FakeBroker implements Broker {
 
     @Override
     public TradeStatusDetails getTradeStatus(String tradeId) {
-        return null;
+        if (tradeStatusDetails != null) return tradeStatusDetails;
+        return new TradeStatusDetails(tradeId, TradeStatusDetails.Status.OPEN); // Default to open
     }
 
 }
