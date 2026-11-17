@@ -14,8 +14,8 @@ public class EmaCrossStrategyFactory implements StrategyFactory {
     public Strategy build(BarSeries series) {
         ClosePriceIndicator closePrice = new ClosePriceIndicator(series);
         EMAIndicator ema = new EMAIndicator(closePrice, 25);
-        Rule buyingRule = new CrossedUpIndicatorRule(ema, closePrice);
-        Rule sellingRule = new CrossedDownIndicatorRule(ema, closePrice);
+        Rule buyingRule = new CrossedUpIndicatorRule(closePrice, ema);
+        Rule sellingRule = new CrossedDownIndicatorRule(closePrice, ema);
 
         return new BaseStrategy(buyingRule, sellingRule);
     }

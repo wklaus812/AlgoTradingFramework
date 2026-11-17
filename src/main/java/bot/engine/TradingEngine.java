@@ -5,6 +5,7 @@ import bot.broker.FilledTradeDetails;
 import bot.broker.OrderDetails;
 import bot.broker.TradeCloseReason;
 import bot.data.Database;
+import bot.data.DatabaseException;
 import org.ta4j.core.*;
 import org.ta4j.core.indicators.ATRIndicator;
 import org.ta4j.core.utils.BarSeriesUtils;
@@ -88,8 +89,13 @@ public class TradingEngine {
         // Place trade and log if successful
         FilledTradeDetails fillDetails = broker.placeMarketOrder(instrumentName, Math.round(tradeSize), orderDetails);
         if (fillDetails != null) {
-            Database.insertOpenTrade(broker.getBrokerName(), fillDetails.getTradeId(), instrumentName, fillDetails.getFillPrice().doubleValue(),
-                    fillDetails.getFillDate().toString(), fillDetails.getUnits().doubleValue());
+            try {
+                Database.insertOpenTrade(broker.getBrokerName(), fillDetails.getTradeId(), instrumentName, fillDetails.getFillPrice().doubleValue(),
+                        fillDetails.getFillDate().toString(), fillDetails.getUnits().doubleValue());
+            } catch (DatabaseException e) {
+                // Log in SL4J
+                System.out.println("Error inserting trade to database for TradeId " + fillDetails.getTradeId());
+            }
 
             // SL4J log here: current date/time, Instrument, fill price, trade size, stop loss price, and take profit price
         }

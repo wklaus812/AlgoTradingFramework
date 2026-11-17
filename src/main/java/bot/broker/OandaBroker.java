@@ -257,7 +257,6 @@ public class OandaBroker implements Broker{
                 // Log unrealize pnl in SL4J
             }
 
-            // Get the close reason
             TransactionID closingTransactionId = trade.getClosingTransactionIDs().getFirst(); // Trades will be closed in one transaction
             TransactionGetResponse transactionResponse = ctx.transaction.get(accountId, closingTransactionId);
 

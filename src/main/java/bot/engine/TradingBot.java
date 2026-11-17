@@ -8,7 +8,6 @@ import bot.data.DatabaseException;
 import bot.strategy.StrategyFactory;
 import org.ta4j.core.BarSeries;
 import org.ta4j.core.num.Num;
-
 import java.util.*;
 
 public class TradingBot {
@@ -27,7 +26,7 @@ public class TradingBot {
         reconcileDatabaseWithBroker(broker);
 
         // Build historical bar series for forex instruments and build trading engines for each
-        HashMap<String, BarSeries> barSeriesByInstrumentName = initAllForexMovingBarSeries(broker);
+        LinkedHashMap<String, BarSeries> barSeriesByInstrumentName = initAllForexMovingBarSeries(broker);
         List<TradingEngine> tradingEngines = initializeTradingEngines(broker, barSeriesByInstrumentName);
 
         // Loop over each Trading Engine
@@ -74,8 +73,8 @@ public class TradingBot {
     }
 
     // Builds a map of all forex instruments, getting the number of historical bars requested
-    private HashMap<String, BarSeries> initAllForexMovingBarSeries(Broker broker) {
-        HashMap<String, BarSeries> barSeriesByInstrumentName = new HashMap<>();
+    private LinkedHashMap<String, BarSeries> initAllForexMovingBarSeries(Broker broker) {
+        Map<String, BarSeries> barSeriesByInstrumentName = new LinkedHashMap<>();
 
         for (String instrument : instruments) {
             BarSeries series = broker.getHistoricalBarSeries(instrument);
@@ -91,7 +90,7 @@ public class TradingBot {
     }
 
     // Build Trading Engines
-    private List<TradingEngine> initializeTradingEngines(Broker broker, HashMap<String, BarSeries> barSeriesByInstrumentName) {
+    private List<TradingEngine> initializeTradingEngines(Broker broker, LinkedHashMap<String, BarSeries> barSeriesByInstrumentName) {
         List<TradingEngine> tradingEngines = new ArrayList<>();
 
         for (String instrumentName : barSeriesByInstrumentName.keySet()) {
