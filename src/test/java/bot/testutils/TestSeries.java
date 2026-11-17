@@ -8,7 +8,6 @@ import org.ta4j.core.num.DecimalNum;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.text.DecimalFormat;
 import java.time.Duration;
 import java.time.Instant;
 
@@ -44,6 +43,17 @@ public class TestSeries {
         Instant same = series.getLastBar().getEndTime();
         double open = series.getLastBar().getOpenPrice().doubleValue();
         return bar(same, open, close, range);
+    }
+
+    // Builds a bar series with provided close prices
+    public static BarSeries fromCloses(double range, double... closes) {
+        BarSeries series = new BaseBarSeriesBuilder().withName("test").build();
+        double prevClose = closes[0];
+        for (int i = 0; i < closes.length; i++) {
+            series.addBar(bar(START.plus(Duration.ofDays(i)), prevClose, closes[i], range));
+            prevClose = closes[i];
+        }
+        return series;
     }
 
     private static Bar bar(Instant end, double open, double close, double range) {

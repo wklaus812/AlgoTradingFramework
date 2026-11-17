@@ -74,7 +74,7 @@ public class TradingBot {
 
     // Builds a map of all forex instruments, getting the number of historical bars requested
     private LinkedHashMap<String, BarSeries> initAllForexMovingBarSeries(Broker broker) {
-        Map<String, BarSeries> barSeriesByInstrumentName = new LinkedHashMap<>();
+        LinkedHashMap<String, BarSeries> barSeriesByInstrumentName = new LinkedHashMap<>();
 
         for (String instrument : instruments) {
             BarSeries series = broker.getHistoricalBarSeries(instrument);
